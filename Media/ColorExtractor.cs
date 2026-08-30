@@ -14,28 +14,34 @@ namespace DynamicIsland.Media
 
             try
             {
-                // Downscale image to 32x32 for ultra-fast, zero-overhead pixel extraction (< 1ms)
-                var formatted = new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
-                var downscaled = new TransformedBitmap(formatted, new ScaleTransform(
-                    32.0 / Math.Max(1, image.PixelWidth),
-                    32.0 / Math.Max(1, image.PixelHeight)
-                ));
-
-                int width = downscaled.PixelWidth;
-                int height = downscaled.PixelHeight;
+                int width = image.PixelWidth;
+                int height = image.PixelHeight;
                 if (width <= 0 || height <= 0) return null;
+
+                // Ensure Bgra32 format
+                BitmapSource formatted = image;
+                if (image.Format != PixelFormats.Bgra32)
+                {
+                    formatted = new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+                }
 
                 int stride = width * 4;
                 byte[] pixels = new byte[height * stride];
-                downscaled.CopyPixels(pixels, stride, 0);
+                formatted.CopyPixels(pixels, stride, 0);
 
                 var candidates = new List<(Color Color, double Score, double Hue)>();
 
-                for (int y = 0; y < height; y++)
+                // Sample a 24x24 grid across the album art
+                int stepX = Math.Max(1, width / 24);
+                int stepY = Math.Max(1, height / 24);
+
+                for (int y = 0; y < height; y += stepY)
                 {
-                    for (int x = 0; x < width; x++)
+                    for (int x = 0; x < width; x += stepX)
                     {
                         int idx = y * stride + x * 4;
+                        if (idx + 3 >= pixels.Length) continue;
+
                         byte b = pixels[idx];
                         byte g = pixels[idx + 1];
                         byte r = pixels[idx + 2];
@@ -45,27 +51,26 @@ namespace DynamicIsland.Media
 
                         RgbToHsl(r, g, b, out double h, out double s, out double l);
 
-                        // Filter out pure black, pure white, and dull gray
-                        if (l < 0.18 || l > 0.88 || s < 0.22) continue;
+                        // Exclude near-black, near-white, and washed out gray
+                        if (l < 0.15 || l > 0.88 || s < 0.20) continue;
 
-                        // Apple-like vibrancy score: higher saturation + pleasant mid-lightness
-                        double score = (s * 2.0) + (1.0 - Math.Abs(l - 0.55) * 2.0);
+                        // Vibrant score favors high saturation and vivid mid-tones
+                        double score = (s * 2.5) + (1.0 - Math.Abs(l - 0.52) * 2.0);
                         candidates.Add((Color.FromRgb(r, g, b), score, h));
                     }
                 }
 
                 if (candidates.Count == 0) return null;
 
-                // Pick the top scoring vibrant color
+                // Pick the highest scoring vibrant color
                 var best = candidates.OrderByDescending(c => c.Score).First().Color;
 
-                // Generate complementary gradient stop
+                // Generate complementary second gradient stop
                 RgbToHsl(best.R, best.G, best.B, out double bh, out double bs, out double bl);
                 
-                // Secondary is slightly richer/warmer tone (shifted hue/lightness)
-                double secondHue = (bh + 12.0) % 360.0;
-                double secondLight = Math.Clamp(bl * 0.82, 0.25, 0.75);
-                double secondSat = Math.Clamp(bs * 1.1, 0.35, 1.0);
+                double secondHue = (bh + 15.0) % 360.0;
+                double secondLight = Math.Clamp(bl * 0.80, 0.25, 0.75);
+                double secondSat = Math.Clamp(bs * 1.15, 0.40, 1.0);
                 var secondary = HslToRgb(secondHue, secondSat, secondLight);
 
                 return (best, secondary);

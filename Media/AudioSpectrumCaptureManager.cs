@@ -21,8 +21,9 @@ namespace DynamicIsland.Media
 
         private float[] audioBuffer = new float[1024];
         private int bufferPos = 0;
+        private DateTime lastDataTime = DateTime.MinValue;
 
-        private DateTime lastDataTime = DateTime.UtcNow;
+        public bool HasLiveAudio => (DateTime.UtcNow - lastDataTime).TotalMilliseconds < 350;
 
         public void Start()
         {
@@ -38,8 +39,9 @@ namespace DynamicIsland.Media
                     capture.StartRecording();
                     isRunning = true;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Debug.WriteLine($"[Spectrum] WasapiLoopbackCapture failed: {ex.Message}");
                     isRunning = false;
                     capture?.Dispose();
                     capture = null;
@@ -86,8 +88,8 @@ namespace DynamicIsland.Media
             int channels = Math.Max(1, format.Channels);
             int sampleRate = format.SampleRate > 0 ? format.SampleRate : 48000;
 
-            // Extract float samples from IEEE float 32-bit or 16-bit PCM
-            if (format.Encoding == WaveFormatEncoding.IeeeFloat && format.BitsPerSample == 32)
+            // Extract float samples from 32-bit Float, 16-bit PCM, or 24-bit PCM
+            if (format.BitsPerSample == 32)
             {
                 int floatCount = e.BytesRecorded / 4;
                 for (int i = 0; i < floatCount; i += channels)
@@ -107,37 +109,59 @@ namespace DynamicIsland.Media
                     bufferPos = (bufferPos + 1) % audioBuffer.Length;
                 }
             }
+            else if (format.BitsPerSample == 24)
+            {
+                int sampleCount = e.BytesRecorded / 3;
+                for (int i = 0; i < sampleCount; i += channels)
+                {
+                    int offset = i * 3;
+                    int val = (e.Buffer[offset] << 8) | (e.Buffer[offset + 1] << 16) | (e.Buffer[offset + 2] << 24);
+                    audioBuffer[bufferPos] = val / 2147483648.0f;
+                    bufferPos = (bufferPos + 1) % audioBuffer.Length;
+                }
+            }
 
-            // Calculate 4 real-time frequency spectrum bands using discrete Goertzel / band filters
+            // Process real frequency bands (Kick Bass, Low Mids, High Mids, Treble)
             ProcessSpectrumBands(sampleRate);
         }
 
         private void ProcessSpectrumBands(int sampleRate)
         {
             int n = audioBuffer.Length;
-            // Key center frequencies: Sub-bass (65Hz), Bass/Mids (250Hz), High-Mids (1200Hz), Treble (4500Hz)
-            float[] targetFreqs = new float[] { 70f, 260f, 1100f, 4200f, 8500f, 13000f };
+
+            // Multi-frequency sampling per band for rich, responsive spectrum capture across all musical keys
+            float[][] bandFrequencies = new float[][]
+            {
+                new float[] { 50f, 75f, 110f, 150f },         // Band 0: Sub-bass & Kick Drops (20 - 180 Hz)
+                new float[] { 220f, 320f, 480f, 650f },       // Band 1: Vocals & Snares (180 - 750 Hz)
+                new float[] { 900f, 1400f, 2100f, 2900f },    // Band 2: Melodies & Guitars (750 - 3200 Hz)
+                new float[] { 4200f, 6800f, 9500f, 13000f }   // Band 3: Hi-hats & Cymbals (3200 - 14000 Hz)
+            };
 
             for (int b = 0; b < 4; b++)
             {
-                float freq = targetFreqs[b];
-                double mag = CalculateGoertzelMagnitude(audioBuffer, freq, sampleRate, n);
+                double maxMag = 0.0;
+                foreach (float freq in bandFrequencies[b])
+                {
+                    double mag = CalculateGoertzelMagnitude(audioBuffer, freq, sampleRate, n);
+                    if (mag > maxMag) maxMag = mag;
+                }
 
-                // Boost low bass and treble for punchy Apple-like visualizer responsiveness
-                double boost = b == 0 ? 3.8 : (b == 1 ? 2.6 : (b == 2 ? 3.0 : 4.5));
-                double energy = Math.Clamp(mag * boost, 0.0, 1.0);
+                // Apple-tuned loudness scaling and dynamic sensitivity boost
+                double boost = b == 0 ? 5.2 : (b == 1 ? 3.8 : (b == 2 ? 4.2 : 6.0));
+                double energy = Math.Clamp(maxMag * boost, 0.0, 1.0);
 
-                // Non-linear loudness curve for dynamic movement across quiet & loud sections
-                energy = Math.Pow(energy, 0.65);
+                // Punchy logarithmic curve for visible bounce
+                energy = Math.Pow(energy, 0.55);
 
-                // Instant attack (punchy on beat drop) & smooth decay
+                // Instant snappy attack on beat drop + smooth decay
                 if (energy > peakEnergies[b])
                 {
                     peakEnergies[b] = energy; // Instant attack
                 }
                 else
                 {
-                    peakEnergies[b] -= (peakEnergies[b] - energy) * 0.18; // Smooth decay
+                    peakEnergies[b] -= (peakEnergies[b] - energy) * 0.22; // Smooth natural decay
                 }
 
                 BandEnergies[b] = Math.Clamp(peakEnergies[b], 0.0, 1.0);
@@ -158,7 +182,7 @@ namespace DynamicIsland.Media
 
             for (int i = 0; i < numSamples; i++)
             {
-                // Hann window to reduce spectral leakage
+                // Hann window to isolate frequencies cleanly
                 double window = 0.5 * (1.0 - Math.Cos((2.0 * Math.PI * i) / (numSamples - 1)));
                 double sample = samples[i] * window;
 

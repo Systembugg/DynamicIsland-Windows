@@ -15,8 +15,6 @@ namespace DynamicIsland.Media
         private readonly double[] targetHeights;
         private readonly Random rng = new Random();
         private double phase = 0;
-        private bool hasRealSpectrumData = false;
-        private DateTime lastSpectrumTime = DateTime.MinValue;
 
         public void SetAccentFromImage(BitmapSource? thumbnail, MediaAppSource appSource)
         {
@@ -148,18 +146,15 @@ namespace DynamicIsland.Media
                 targetHeights[i] = 3.0;
             }
 
-            animTimer.Interval = TimeSpan.FromMilliseconds(33); // 30 FPS smooth physics loop
+            animTimer.Interval = TimeSpan.FromMilliseconds(25); // 40 FPS high-refresh physics loop
             animTimer.Tick += AnimTimer_Tick;
 
             // Connect real audio spectrum capture event
             AudioSpectrumCaptureManager.Instance.OnSpectrumUpdated += (bands) =>
             {
-                hasRealSpectrumData = true;
-                lastSpectrumTime = DateTime.UtcNow;
-
                 for (int i = 0; i < barCount && i < bands.Length; i++)
                 {
-                    // Scale from resting height (3px) up to 15px max height
+                    // Scale from resting height (3px) up to 15px max height based on live audio beats
                     targetHeights[i] = 3.0 + (bands[i] * 12.0);
                 }
             };
@@ -179,21 +174,21 @@ namespace DynamicIsland.Media
         {
             phase += 0.35;
 
-            // If real spectrum data hasn't arrived in last 300ms, use organic harmonic fallback
-            bool isSpectrumStale = (DateTime.UtcNow - lastSpectrumTime).TotalMilliseconds > 300;
+            bool hasLiveSound = AudioSpectrumCaptureManager.Instance.HasLiveAudio;
 
-            if (isPlaying && (!hasRealSpectrumData || isSpectrumStale))
+            if (isPlaying && !hasLiveSound)
             {
+                // Fallback to organic subtle wave when sound output is completely silent
                 for (int i = 0; i < barCount; i++)
                 {
-                    double s1 = Math.Sin(phase * 1.2 + (i * 1.3));
+                    double s1 = Math.Sin(phase * 1.1 + (i * 1.3));
                     double s2 = Math.Cos(phase * 0.7 - (i * 0.9));
                     double r = rng.NextDouble();
                     
-                    double mag = Math.Abs(s1 * 0.5 + s2 * 0.3 + r * 0.4);
-                    mag = Math.Clamp(mag, 0.2, 1.0);
+                    double mag = Math.Abs(s1 * 0.4 + s2 * 0.3 + r * 0.3);
+                    mag = Math.Clamp(mag, 0.15, 0.85);
 
-                    targetHeights[i] = 3.0 + mag * 11.5; // 3px to 14.5px
+                    targetHeights[i] = 3.0 + mag * 8.0; // Subtle motion during silence
                 }
             }
 
@@ -202,9 +197,9 @@ namespace DynamicIsland.Media
             for (int i = 0; i < barCount; i++)
             {
                 double diff = targetHeights[i] - currentHeights[i];
-                if (Math.Abs(diff) > 0.12)
+                if (Math.Abs(diff) > 0.1)
                 {
-                    currentHeights[i] += diff * 0.50; // Fast spring responsiveness
+                    currentHeights[i] += diff * 0.55; // Fast spring responsiveness
                     bars[i].Height = currentHeights[i];
                     stillMoving = true;
                 }

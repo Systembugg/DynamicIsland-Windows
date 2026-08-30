@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Height="16" VerticalAlignment="Center">
     <UserControl.Resources>
-        <!-- Apple Music Signature Magenta/Purple Gradient (Matches Reference Screenshot 2) -->
         <LinearGradientBrush x:Key="AppleMusicWaveGradient" StartPoint="0,0" EndPoint="0,1">
             <GradientStop Color="#C759C9" Offset="0.0"/>
             <GradientStop Color="#FA2D48" Offset="1.0"/>
@@ -11,11 +10,11 @@
     </UserControl.Resources>
 
     <StackPanel x:Name="BarsContainer" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
-        <Border x:Name="Bar0" Width="2.2" Height="4" Margin="1.2,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.1" VerticalAlignment="Center"/>
-        <Border x:Name="Bar1" Width="2.2" Height="8" Margin="1.2,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.1" VerticalAlignment="Center"/>
-        <Border x:Name="Bar2" Width="2.2" Height="12" Margin="1.2,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.1" VerticalAlignment="Center"/>
-        <Border x:Name="Bar3" Width="2.2" Height="6" Margin="1.2,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.1" VerticalAlignment="Center"/>
-        <Border x:Name="Bar4" Width="2.2" Height="10" Margin="1.2,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.1" VerticalAlignment="Center" Visibility="Collapsed"/>
-        <Border x:Name="Bar5" Width="2.2" Height="7" Margin="1.2,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.1" VerticalAlignment="Center" Visibility="Collapsed"/>
+        <Border x:Name="Bar0" Width="2.4" Height="4" Margin="0,0,2.5,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.2" VerticalAlignment="Center"/>
+        <Border x:Name="Bar1" Width="2.4" Height="8" Margin="0,0,2.5,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.2" VerticalAlignment="Center"/>
+        <Border x:Name="Bar2" Width="2.4" Height="12" Margin="0,0,2.5,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.2" VerticalAlignment="Center"/>
+        <Border x:Name="Bar3" Width="2.4" Height="6" Margin="0,0,0,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.2" VerticalAlignment="Center"/>
+        <Border x:Name="Bar4" Width="2.4" Height="10" Margin="2.5,0,0,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.2" VerticalAlignment="Center" Visibility="Collapsed"/>
+        <Border x:Name="Bar5" Width="2.4" Height="7" Margin="2.5,0,0,0" Background="{StaticResource AppleMusicWaveGradient}" CornerRadius="1.2" VerticalAlignment="Center" Visibility="Collapsed"/>
     </StackPanel>
 </UserControl>
