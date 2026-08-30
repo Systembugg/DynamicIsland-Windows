@@ -271,7 +271,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- ROW 0: TOP APP SWITCHER NAVIGATION BAR -->
-                <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid x:Name="UniversalNavContainer" Grid.Row="0" Margin="0,0,0,10">
                     <!-- Left: Navigation Icons Pills -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- Home Icon -->
@@ -1036,7 +1036,7 @@
                     </Grid>
 
                     <!-- CALL EXPANDED VIEW (When ongoing call is tapped/expanded) -->
-                    <Grid x:Name="ViewCallExpandedBody" VerticalAlignment="Stretch" Visibility="Collapsed">
+                    <Grid x:Name="ViewCallExpandedBody" VerticalAlignment="Stretch" Visibility="Collapsed" Margin="6,2,6,4">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
@@ -1044,30 +1044,33 @@
                         </Grid.RowDefinitions>
 
                         <!-- Header Info -->
-                        <Grid Grid.Row="0" Margin="0,4,0,12">
+                        <Grid Grid.Row="0" Margin="0,4,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <Border Grid.Column="0" Width="48" Height="48" CornerRadius="24" Background="#2C2C2E" ClipToBounds="True">
-                                <TextBlock x:Name="TxtCallExpandedAvatar" Text="👤" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#8E8E93"/>
+                            <Border Grid.Column="0" Width="52" Height="52" CornerRadius="26" Background="#2C2C2E" BorderBrush="#30FFFFFF" BorderThickness="1" ClipToBounds="True">
+                                <Grid>
+                                    <Image x:Name="ImgCallExpandedAvatar" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                    <TextBlock x:Name="TxtCallExpandedInitial" Text="👤" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#A4A4A9"/>
+                                </Grid>
                             </Border>
 
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
-                                <TextBlock x:Name="TxtCallExpandedName" Text="Tamia Castle" Foreground="#FFFFFF" FontSize="16" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="TxtCallExpandedSubtitle" Text="01:23 • WhatsApp Call" Foreground="#37C058" FontSize="12.5" FontWeight="Medium" Margin="0,2,0,0"/>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,0,0,0">
+                                <TextBlock x:Name="TxtCallExpandedName" Text="Tamia Castle" Foreground="#FFFFFF" FontSize="17.5" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="TxtCallExpandedSubtitle" Text="01:23 • WhatsApp Audio" Foreground="#37C058" FontSize="13" FontWeight="Medium" Margin="0,3,0,0"/>
                             </StackPanel>
 
-                            <localCall:CallWaveformControl Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <localCall:CallWaveformControl Grid.Column="2" VerticalAlignment="Center" Margin="0,0,6,0"/>
                         </Grid>
 
                         <!-- End Call Action Bar -->
-                        <Border Grid.Row="2" Height="44" CornerRadius="22" Background="#FA3532" Cursor="Hand" HorizontalAlignment="Center" Padding="32,0" Margin="0,10,0,2" MouseLeftButtonDown="BtnExpandedEndCall_MouseLeftButtonDown">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Path Data="{StaticResource IconCallDecline}" Fill="White" Width="18" Height="18" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Text="End Call" Foreground="#FFFFFF" FontSize="13.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <Border Grid.Row="2" Width="210" Height="44" CornerRadius="22" Background="#FA3532" Cursor="Hand" HorizontalAlignment="Center" Margin="0,14,0,2" MouseLeftButtonDown="BtnExpandedEndCall_MouseLeftButtonDown">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconCallDecline}" Fill="White" Width="17" Height="17" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="End Call" Foreground="#FFFFFF" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </Grid>

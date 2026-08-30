@@ -5309,6 +5309,12 @@ namespace DynamicIsland
                 HideAllExpandedTabBodies();
                 UniversalExpandedContainer.Visibility = Visibility.Visible;
 
+                // Hide top app switcher nav during Call mode
+                if (UniversalNavContainer != null)
+                {
+                    UniversalNavContainer.Visibility = (currentExpandedTab == ExpandedActivityTab.Call) ? Visibility.Collapsed : Visibility.Visible;
+                }
+
                 // Reset nav button states matching dock_dropzone_mock.html
                 var defaultBg = new SolidColorBrush(Color.FromRgb(0x19, 0x1A, 0x1D));
                 var defaultMutedIcon = new SolidColorBrush(Color.FromRgb(0xE9, 0xE9, 0xED));
@@ -5532,13 +5538,15 @@ namespace DynamicIsland
                 else if (currentExpandedTab == ExpandedActivityTab.Call)
                 {
                     ViewCallExpandedBody.Visibility = Visibility.Visible;
-                    TxtCallExpandedName.Text = WhatsAppCallManager.Instance.CurrentCall?.CallerName ?? "WhatsApp Caller";
+                    string callerName = WhatsAppCallManager.Instance.CurrentCall?.CallerName ?? "Tamia Castle";
+                    TxtCallExpandedName.Text = callerName;
+                    TxtCallExpandedInitial.Text = !string.IsNullOrWhiteSpace(callerName) ? callerName.Substring(0, 1).ToUpperInvariant() : "👤";
                     string durText = WhatsAppCallManager.Instance.CurrentCall != null
                         ? (WhatsAppCallManager.Instance.CurrentCall.Duration.TotalHours >= 1 ? WhatsAppCallManager.Instance.CurrentCall.Duration.ToString(@"hh\:mm\:ss") : WhatsAppCallManager.Instance.CurrentCall.Duration.ToString(@"mm\:ss"))
                         : "00:00";
                     TxtCallExpandedSubtitle.Text = $"{durText} • {(WhatsAppCallManager.Instance.CurrentCall?.Type == CallType.Video ? "WhatsApp Video" : "WhatsApp Audio")}";
-                    double targetW = 400;
-                    double targetH = currentMode == ShapeDisplayMode.Notch ? 175 : 160;
+                    double targetW = 380;
+                    double targetH = currentMode == ShapeDisplayMode.Notch ? 160 : 148;
                     AnimateSize(targetW, targetH);
                 }
                 else

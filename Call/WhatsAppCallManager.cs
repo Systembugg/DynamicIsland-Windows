@@ -226,19 +226,41 @@ namespace DynamicIsland.Call
                             string callerName = "WhatsApp Caller";
                             CallType callType = CallType.Voice;
 
+                            string[] ignoreKeywords = new[] { "accept", "decline", "whatsapp", "voice call", "video call", "calling", "call", "end call", "mute", "unmute", "camera", "microphone", "more", "options", "settings", "close", "minimize", "maximize" };
+                            string bestCallerName = "";
+
                             foreach (AutomationElement txt in textElements)
                             {
-                                string t = txt.Current.Name ?? "";
-                                if (t.Equals("WhatsApp", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(t)) continue;
+                                string t = (txt.Current.Name ?? "").Trim();
+                                if (string.IsNullOrWhiteSpace(t)) continue;
 
                                 if (t.Contains("Video", StringComparison.OrdinalIgnoreCase))
                                 {
                                     callType = CallType.Video;
                                 }
-                                else if (!t.Contains("Voice", StringComparison.OrdinalIgnoreCase) && !t.Contains("call", StringComparison.OrdinalIgnoreCase) && !t.Contains("Calling", StringComparison.OrdinalIgnoreCase))
+
+                                bool isIgnore = false;
+                                foreach (var ign in ignoreKeywords)
                                 {
-                                    callerName = t;
+                                    if (t.Equals(ign, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        isIgnore = true;
+                                        break;
+                                    }
                                 }
+
+                                if (!isIgnore && !t.Contains("Voice", StringComparison.OrdinalIgnoreCase) && !t.Contains("Video", StringComparison.OrdinalIgnoreCase) && !t.Contains("Call", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if (string.IsNullOrEmpty(bestCallerName) || bestCallerName.Length < t.Length)
+                                    {
+                                        bestCallerName = t;
+                                    }
+                                }
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(bestCallerName))
+                            {
+                                callerName = bestCallerName;
                             }
 
                             if (CurrentCall == null || CurrentCall.State != CallState.Incoming || CurrentCall.CallerName != callerName)
