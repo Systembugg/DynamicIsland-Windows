@@ -1,0 +1,15 @@
+## Visual Studio and .NET Build Artifacts
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+## Logs
+*.log
+
+## OS Files
+.DS_Store
+Thumbs.db
