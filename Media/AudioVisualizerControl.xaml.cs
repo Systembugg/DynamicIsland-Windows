@@ -13,7 +13,7 @@ namespace DynamicIsland.Media
         private readonly Border[] bars;
         private readonly double[] currentHeights;
         private readonly double[] targetHeights;
-        private readonly double[] velocities;
+        private readonly Random rng = new Random();
         private double phase = 0;
 
         public void SetAccentFromImage(BitmapSource? thumbnail, MediaAppSource appSource)
@@ -127,16 +127,14 @@ namespace DynamicIsland.Media
             bars = new Border[] { Bar0, Bar1, Bar2, Bar3, Bar4, Bar5 };
             currentHeights = new double[6];
             targetHeights = new double[6];
-            velocities = new double[6];
 
             for (int i = 0; i < 6; i++)
             {
                 currentHeights[i] = 3.0;
                 targetHeights[i] = 3.0;
-                velocities[i] = 0.0;
             }
 
-            animTimer.Interval = TimeSpan.FromMilliseconds(16); // 60 FPS smooth rendering loop
+            animTimer.Interval = TimeSpan.FromMilliseconds(40); // 25 FPS
             animTimer.Tick += AnimTimer_Tick;
 
             UpdateBarVisibility();
@@ -152,44 +150,39 @@ namespace DynamicIsland.Media
 
         private void AnimTimer_Tick(object? sender, EventArgs e)
         {
-            phase += 0.28;
+            phase += 0.35;
 
             if (isPlaying)
             {
-                // Default Apple Smooth Harmonic Rhythmic Wave
+                // Dynamic harmonic frequencies + organic amplitude variation matching Apple Music Equalizer
                 for (int i = 0; i < barCount; i++)
                 {
-                    double s1 = Math.Sin((phase * 0.8) + (i * 1.15));
-                    double s2 = Math.Cos((phase * 0.45) - (i * 0.75));
-                    double mag = Math.Abs((s1 * 0.55) + (s2 * 0.45));
-                    targetHeights[i] = 3.0 + (Math.Clamp(mag, 0.12, 0.95) * 10.5);
-                }
-            }
-            else
-            {
-                for (int i = 0; i < barCount; i++)
-                {
-                    targetHeights[i] = 3.0;
+                    double s1 = Math.Sin((phase * 1.2) + (i * 1.3));
+                    double s2 = Math.Cos((phase * 0.7) - (i * 0.9));
+                    double r = rng.NextDouble();
+                    
+                    double mag = Math.Abs((s1 * 0.5) + (s2 * 0.3) + (r * 0.4));
+                    mag = Math.Clamp(mag, 0.2, 1.0);
+
+                    targetHeights[i] = 3.0 + (mag * 11.5); // 3px to 14.5px
                 }
             }
 
-            // Apple Critically Damped Spring Physics (stiffness 0.20, damping 0.76)
-            double stiffness = 0.20;
-            double damping = 0.76;
+            // Smooth interpolation
             bool stillMoving = false;
-
             for (int i = 0; i < barCount; i++)
             {
-                double displacement = targetHeights[i] - currentHeights[i];
-                velocities[i] = (velocities[i] * damping) + (displacement * stiffness);
-                currentHeights[i] += velocities[i];
-
-                currentHeights[i] = Math.Clamp(currentHeights[i], 3.0, 15.0);
-                bars[i].Height = currentHeights[i];
-
-                if (Math.Abs(displacement) > 0.05 || Math.Abs(velocities[i]) > 0.05)
+                double diff = targetHeights[i] - currentHeights[i];
+                if (Math.Abs(diff) > 0.15)
                 {
+                    currentHeights[i] += diff * 0.45;
+                    bars[i].Height = currentHeights[i];
                     stillMoving = true;
+                }
+                else
+                {
+                    currentHeights[i] = targetHeights[i];
+                    bars[i].Height = currentHeights[i];
                 }
             }
 
