@@ -64,8 +64,8 @@ namespace DynamicIsland.Call
                 }
             };
 
-            // Fast 500ms UI Automation background scanner
-            _scanTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            // Background UI Automation scanner (3000ms — slowed down to minimize CPU cost of tree walks)
+            _scanTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3000) };
             _scanTimer.Tick += (s, e) => Task.Run(() => ScanForWhatsAppCall());
             _scanTimer.Start();
 
@@ -159,6 +159,26 @@ namespace DynamicIsland.Call
         {
             try
             {
+                // GPU Optimization: Skip expensive UI Automation tree walk if no WhatsApp process is running
+                bool hasWhatsApp = false;
+                foreach (var proc in Process.GetProcesses())
+                {
+                    try
+                    {
+                        if (proc.ProcessName.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+                        {
+                            hasWhatsApp = true;
+                            break;
+                        }
+                    }
+                    finally { proc.Dispose(); }
+                }
+                if (!hasWhatsApp)
+                {
+                    if (IsCallActive) EndCall();
+                    return;
+                }
+
                 var root = AutomationElement.RootElement;
                 if (root == null) return;
 

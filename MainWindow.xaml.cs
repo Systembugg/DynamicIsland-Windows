@@ -249,8 +249,8 @@ namespace DynamicIsland
             LoadDeviceBitmaps();
             ShapeRoot.SizeChanged += (s, e) => RedrawGeometry(e.NewSize.Width, e.NewSize.Height);
             
-            // Watch Windows Privacy & Windows 11 DND State (1500ms)
-            backgroundWatcherTimer.Interval = TimeSpan.FromMilliseconds(1500);
+            // Watch Windows Privacy & Windows 11 DND State (3000ms — reduced from 1500ms for CPU savings)
+            backgroundWatcherTimer.Interval = TimeSpan.FromMilliseconds(3000);
             backgroundWatcherTimer.Tick += BackgroundWatcherTimer_Tick;
             backgroundWatcherTimer.Start();
 
@@ -284,25 +284,26 @@ namespace DynamicIsland
                 }
             };
 
-            // Audio Device Watcher (3000ms - instant WM_DEVICECHANGE handles connections with 0 latency)
-            audioEndpointWatcherTimer.Interval = TimeSpan.FromMilliseconds(3000);
+            // Audio Device Watcher (8000ms safety fallback — WM_DEVICECHANGE handles connections instantly)
+            audioEndpointWatcherTimer.Interval = TimeSpan.FromMilliseconds(8000);
             audioEndpointWatcherTimer.Tick += AudioEndpointWatcherTimer_Tick;
             audioEndpointWatcherTimer.Start();
 
-            // Volume Poller (45ms)
+            // Volume Fast Poller (45ms — only runs on-demand during active volume changes, NOT always-on)
             volumePollTimer.Interval = TimeSpan.FromMilliseconds(45);
             volumePollTimer.Tick += VolumePollTimer_Tick;
+            // NOT started here — started on-demand in keyboard hook / mouse wheel
 
-            // Real-Time Hardware Brightness Watcher & Poller (350ms)
+            // Real-Time Hardware Brightness — WMI event-driven (push), with 5s fallback poller for external DDC/CI monitors
             InitBrightnessWatcher();
-            brightnessPollTimer.Interval = TimeSpan.FromMilliseconds(350);
+            brightnessPollTimer.Interval = TimeSpan.FromMilliseconds(5000); // Slow fallback only
             brightnessPollTimer.Tick += BrightnessPollTimer_Tick;
-            brightnessPollTimer.Start();
+            // NOT started here — started only if WMI watcher fails in InitBrightnessWatcher()
 
-            // Timeline continuous scrubber ticker (35ms high-frequency sync during playback)
+            // Timeline continuous scrubber ticker (35ms high-frequency sync — only runs during active music playback)
             timelineTickerTimer.Interval = TimeSpan.FromMilliseconds(35);
             timelineTickerTimer.Tick += TimelineTickerTimer_Tick;
-            timelineTickerTimer.Start();
+            // NOT started here — started on-demand in Media_OnPlaybackStateChanged / Media_OnTrackChanged
 
             // Real-time Bluetooth Connection Arrival Listener
             BluetoothBatteryManager.Instance.DeviceConnected += (name, category, battery) =>
@@ -604,8 +605,8 @@ namespace DynamicIsland
             UpdateIndicatorVisuals();
 
             CheckWindowsPrivacyState();
-            volumePollTimer.Start();
-            brightnessPollTimer.Start();
+            // volumePollTimer — NOT started here (on-demand only, triggered by volume key/wheel)
+            // brightnessPollTimer — NOT started here (WMI event-driven, fallback started only if watcher fails)
             audioEndpointWatcherTimer.Start();
 
             // Real-Time Bluetooth Battery & Device Listener
@@ -794,6 +795,7 @@ namespace DynamicIsland
                 {
                     activeInstance?.Dispatcher.InvokeAsync(() =>
                     {
+                        if (!activeInstance.volumePollTimer.IsEnabled) activeInstance.volumePollTimer.Start();
                         activeInstance.ToggleMasterMute();
                     });
                 }
@@ -2920,6 +2922,9 @@ namespace DynamicIsland
                     IconPlayPauseShape.Data = (Geometry)FindResource(track.IsPlaying ? "IconMediaPause" : "IconMediaPlay");
                     IconLyricsPlayPauseShape.Data = (Geometry)FindResource(track.IsPlaying ? "IconMediaPause" : "IconMediaPlay");
 
+                    // GPU Optimization: Start timeline ticker only when music is actually playing
+                    if (track.IsPlaying && !timelineTickerTimer.IsEnabled) timelineTickerTimer.Start();
+
                     _ = LyricsManager.Instance.FetchLyricsForTrackAsync(track.Title, track.Artist, track.Duration);
                 }
                 else
@@ -2955,6 +2960,16 @@ namespace DynamicIsland
                 {
                     IconPlayPauseShape.Data = (Geometry)FindResource(isPlaying ? "IconMediaPause" : "IconMediaPlay");
                     IconLyricsPlayPauseShape.Data = (Geometry)FindResource(isPlaying ? "IconMediaPause" : "IconMediaPlay");
+                }
+
+                // GPU Optimization: Only run timeline ticker when music is actively playing or expanded music view is open
+                if (isPlaying || (isExpanded && currentExpandedTab == ExpandedActivityTab.Music))
+                {
+                    if (!timelineTickerTimer.IsEnabled) timelineTickerTimer.Start();
+                }
+                else
+                {
+                    if (timelineTickerTimer.IsEnabled) timelineTickerTimer.Stop();
                 }
             });
         }
@@ -4411,8 +4426,21 @@ namespace DynamicIsland
                         catch { }
                     };
                     _brightnessEventWatcher.Start();
+
+                    // Read initial brightness value once (without polling)
+                    int initB = GetWindowsBrightness();
+                    if (initB >= 0)
+                    {
+                        lastKnownBrightness = initB;
+                        displayedBrightnessLevel = initB;
+                        isInitialBrightnessLoaded = true;
+                    }
                 }
-                catch { }
+                catch
+                {
+                    // WMI watcher failed (external DDC/CI monitor?) — fall back to slow 5s poller
+                    Dispatcher.Invoke(() => brightnessPollTimer.Start());
+                }
             });
         }
 
@@ -4871,6 +4899,9 @@ namespace DynamicIsland
             isAirDropHudActive = false;
             isExpanded = false;
 
+            // GPU Optimization: Start the fast poller on-demand for real-time tracking during active volume changes
+            if (!volumePollTimer.IsEnabled) volumePollTimer.Start();
+
             int pct = (int)Math.Round(level * 100);
 
             if (isMuted || pct == 0)
@@ -4975,6 +5006,9 @@ namespace DynamicIsland
             if (isDraggingVolume) return;
             volumeAutoHideTimer.Stop();
             isVolumeHudActive = false;
+
+            // GPU Optimization: Stop the fast 45ms volume poller now that HUD is dismissed
+            if (volumePollTimer.IsEnabled) volumePollTimer.Stop();
 
             HideAllHudViews();
             StealthView.Visibility = Visibility.Visible;
