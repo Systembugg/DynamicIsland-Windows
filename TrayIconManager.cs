@@ -153,13 +153,29 @@ namespace DynamicIsland
 
             menu.Items.Add(new Separator());
 
-            var callVoiceItem = new MenuItem { Header = "📞 Preview WhatsApp Voice Call", Foreground = new SolidColorBrush(Color.FromRgb(0x37, 0xC0, 0x58)) };
-            callVoiceItem.Click += (s, e) => DynamicIsland.Call.WhatsAppCallManager.Instance.SimulateTestCall("Mata Shri 👼", false);
-            menu.Items.Add(callVoiceItem);
+            var callSubMenu = new MenuItem { Header = "📞 WhatsApp Call Previews (SVG 1, 2, 3)", Foreground = new SolidColorBrush(Color.FromRgb(0x37, 0xC0, 0x58)) };
 
-            var callVideoItem = new MenuItem { Header = "📹 Preview WhatsApp Video Call", Foreground = new SolidColorBrush(Color.FromRgb(0x37, 0xC0, 0x58)) };
-            callVideoItem.Click += (s, e) => DynamicIsland.Call.WhatsAppCallManager.Instance.SimulateTestCall("Mata Shri 👼", true);
-            menu.Items.Add(callVideoItem);
+            var previewIncomingVoice = new MenuItem { Header = "📲 1. Incoming Call Banner (367x86 - SVG 1)", Foreground = Brushes.White };
+            previewIncomingVoice.Click += (s, e) => DynamicIsland.Call.WhatsAppCallManager.Instance.SimulateIncomingCall("Tamia Castle", false);
+            callSubMenu.Items.Add(previewIncomingVoice);
+
+            var previewIncomingVideo = new MenuItem { Header = "📹 1b. Incoming Video Call Banner (367x86)", Foreground = Brushes.White };
+            previewIncomingVideo.Click += (s, e) => DynamicIsland.Call.WhatsAppCallManager.Instance.SimulateIncomingCall("Tamia Castle", true);
+            callSubMenu.Items.Add(previewIncomingVideo);
+
+            var previewCompactVoice = new MenuItem { Header = "🟢 2. Compact Voice Call Island (200x38 - SVG 2)", Foreground = new SolidColorBrush(Color.FromRgb(0x37, 0xC0, 0x58)) };
+            previewCompactVoice.Click += (s, e) => DynamicIsland.Call.WhatsAppCallManager.Instance.SimulateOngoingVoiceCall("Tamia Castle");
+            callSubMenu.Items.Add(previewCompactVoice);
+
+            var previewCompactVideo = new MenuItem { Header = "📹 3. Compact Video Call Island (165x38 - SVG 3)", Foreground = new SolidColorBrush(Color.FromRgb(0x37, 0xC0, 0x58)) };
+            previewCompactVideo.Click += (s, e) => DynamicIsland.Call.WhatsAppCallManager.Instance.SimulateOngoingVideoCall("Tamia Castle");
+            callSubMenu.Items.Add(previewCompactVideo);
+
+            var previewReset = new MenuItem { Header = "⏹️ End / Dismiss Call", Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x45, 0x3A)) };
+            previewReset.Click += (s, e) => DynamicIsland.Call.WhatsAppCallManager.Instance.ResetCall();
+            callSubMenu.Items.Add(previewReset);
+
+            menu.Items.Add(callSubMenu);
 
             menu.Items.Add(new Separator());
 

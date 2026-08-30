@@ -646,6 +646,7 @@ namespace DynamicIsland
                 {
                     isIncomingCallActive = false;
                     currentExpandedTab = ExpandedActivityTab.Call;
+                    isExpanded = false;
                     UpdateIndicatorVisuals();
                 });
             };
@@ -5587,6 +5588,7 @@ namespace DynamicIsland
                         CallCompactVideoLeftContainer.Visibility = Visibility.Visible;
                         CallCompactWaveform.Visibility = Visibility.Visible;
                         baseW = currentMode == ShapeDisplayMode.Notch ? 175 : 165;
+                        baseH = currentMode == ShapeDisplayMode.Notch ? 36 : 38;
                     }
                     else
                     {
@@ -5597,6 +5599,7 @@ namespace DynamicIsland
                             : "00:00";
                         TxtCallCompactDuration.Text = durText;
                         baseW = currentMode == ShapeDisplayMode.Notch ? 215 : 200;
+                        baseH = currentMode == ShapeDisplayMode.Notch ? 36 : 38;
                     }
                     isMultiActivityActive = true;
                 }

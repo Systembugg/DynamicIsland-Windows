@@ -1600,14 +1600,14 @@
                 </StackPanel>
 
                 <!-- Right: Action Buttons (Decline & Accept) -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,18,0">
                     <!-- Red Decline Button (#FA3532) -->
-                    <Border x:Name="BtnIncomingCallDecline" Width="52" Height="52" CornerRadius="26" Background="#FA3532" Cursor="Hand" Margin="0,0,10,0" ToolTip="Decline Call" MouseLeftButtonDown="BtnIncomingCallDecline_MouseLeftButtonDown">
+                    <Border x:Name="BtnIncomingCallDecline" Width="49" Height="49" CornerRadius="24.5" Background="#FA3532" Cursor="Hand" Margin="0,0,8,0" ToolTip="Decline Call" MouseLeftButtonDown="BtnIncomingCallDecline_MouseLeftButtonDown">
                         <Path Data="{StaticResource IconCallDecline}" Fill="White" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
 
                     <!-- Green Accept Button (#37C058) -->
-                    <Border x:Name="BtnIncomingCallAccept" Width="52" Height="52" CornerRadius="26" Background="#37C058" Cursor="Hand" ToolTip="Accept Call" MouseLeftButtonDown="BtnIncomingCallAccept_MouseLeftButtonDown">
+                    <Border x:Name="BtnIncomingCallAccept" Width="49" Height="49" CornerRadius="24.5" Background="#37C058" Cursor="Hand" ToolTip="Accept Call" MouseLeftButtonDown="BtnIncomingCallAccept_MouseLeftButtonDown">
                         <Path Data="{StaticResource IconCallAccept}" Fill="White" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                 </StackPanel>

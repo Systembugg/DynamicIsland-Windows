@@ -280,7 +280,7 @@ namespace DynamicIsland.Call
                     catch { }
                 }
 
-                if (!foundCall && CurrentCall != null && (CurrentCall.State == CallState.OngoingVoice || CurrentCall.State == CallState.OngoingVideo || CurrentCall.State == CallState.Incoming))
+                if (!foundCall && !IsPreviewMode && CurrentCall != null && (CurrentCall.State == CallState.OngoingVoice || CurrentCall.State == CallState.OngoingVideo || CurrentCall.State == CallState.Incoming))
                 {
                     Application.Current.Dispatcher.Invoke(() =>
                     {
@@ -291,11 +291,13 @@ namespace DynamicIsland.Call
             catch { }
         }
 
+        public bool IsPreviewMode { get; set; } = false;
+
         public void TriggerIncomingCall(string callerName, CallType type, uint? notificationId = null)
         {
             CurrentCall = new CallInfo
             {
-                CallerName = string.IsNullOrWhiteSpace(callerName) ? "WhatsApp Caller" : callerName,
+                CallerName = string.IsNullOrWhiteSpace(callerName) ? "Tamia Castle" : callerName,
                 Subtitle = type == CallType.Video ? "WhatsApp Video" : "WhatsApp Audio",
                 AppName = "WhatsApp",
                 Type = type,
@@ -316,7 +318,7 @@ namespace DynamicIsland.Call
 
             _durationTimer.Start();
 
-            // Programmatically invoke WhatsApp Accept button
+            // Programmatically invoke WhatsApp Accept button if real call
             try
             {
                 if (_cachedAcceptButton != null)
@@ -341,7 +343,7 @@ namespace DynamicIsland.Call
             CurrentCall.State = CallState.Ended;
             _durationTimer.Stop();
 
-            // Programmatically invoke WhatsApp Decline button
+            // Programmatically invoke WhatsApp Decline button if real call
             try
             {
                 if (_cachedDeclineButton != null)
@@ -363,6 +365,7 @@ namespace DynamicIsland.Call
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     CurrentCall = null;
+                    IsPreviewMode = false;
                 });
             });
         }
@@ -372,9 +375,54 @@ namespace DynamicIsland.Call
             DeclineCall();
         }
 
-        public void SimulateTestCall(string callerName = "Mata Shri 👼", bool isVideo = false)
+        public void SimulateIncomingCall(string callerName = "Tamia Castle", bool isVideo = false)
         {
+            IsPreviewMode = true;
             TriggerIncomingCall(callerName, isVideo ? CallType.Video : CallType.Voice);
+        }
+
+        public void SimulateOngoingVoiceCall(string callerName = "Tamia Castle")
+        {
+            IsPreviewMode = true;
+            CurrentCall = new CallInfo
+            {
+                CallerName = callerName,
+                Subtitle = "WhatsApp Audio",
+                AppName = "WhatsApp",
+                Type = CallType.Voice,
+                State = CallState.OngoingVoice,
+                StartTime = DateTime.UtcNow.AddSeconds(-48) // Starts at 00:48 matching SVG 2
+            };
+            _durationTimer.Start();
+            OnCallAnswered?.Invoke(CurrentCall);
+        }
+
+        public void SimulateOngoingVideoCall(string callerName = "Tamia Castle")
+        {
+            IsPreviewMode = true;
+            CurrentCall = new CallInfo
+            {
+                CallerName = callerName,
+                Subtitle = "WhatsApp Video",
+                AppName = "WhatsApp",
+                Type = CallType.Video,
+                State = CallState.OngoingVideo,
+                StartTime = DateTime.UtcNow.AddSeconds(-48)
+            };
+            _durationTimer.Start();
+            OnCallAnswered?.Invoke(CurrentCall);
+        }
+
+        public void ResetCall()
+        {
+            IsPreviewMode = false;
+            if (CurrentCall != null)
+            {
+                CurrentCall.State = CallState.Ended;
+                _durationTimer.Stop();
+                OnCallEnded?.Invoke(CurrentCall);
+                CurrentCall = null;
+            }
         }
     }
 }
