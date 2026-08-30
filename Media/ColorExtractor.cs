@@ -18,7 +18,7 @@ namespace DynamicIsland.Media
                 int height = image.PixelHeight;
                 if (width <= 0 || height <= 0) return null;
 
-                // Ensure Bgra32 format
+                // Format to Bgra32
                 BitmapSource formatted = image;
                 if (image.Format != PixelFormats.Bgra32)
                 {
@@ -29,11 +29,10 @@ namespace DynamicIsland.Media
                 byte[] pixels = new byte[height * stride];
                 formatted.CopyPixels(pixels, stride, 0);
 
-                var candidates = new List<(Color Color, double Score, double Hue)>();
+                var candidates = new List<(Color Color, double Score)>();
 
-                // Sample a 24x24 grid across the album art
-                int stepX = Math.Max(1, width / 24);
-                int stepY = Math.Max(1, height / 24);
+                int stepX = Math.Max(1, width / 30);
+                int stepY = Math.Max(1, height / 30);
 
                 for (int y = 0; y < height; y += stepY)
                 {
@@ -47,33 +46,36 @@ namespace DynamicIsland.Media
                         byte r = pixels[idx + 2];
                         byte a = pixels[idx + 3];
 
-                        if (a < 128) continue; // Skip transparent
+                        if (a < 100) continue; // Skip transparency
 
                         RgbToHsl(r, g, b, out double h, out double s, out double l);
 
-                        // Exclude near-black, near-white, and washed out gray
-                        if (l < 0.15 || l > 0.88 || s < 0.20) continue;
+                        // Skip pure black (L < 0.08) and pure white (L > 0.92)
+                        if (l < 0.08 || l > 0.92) continue;
 
-                        // Vibrant score favors high saturation and vivid mid-tones
-                        double score = (s * 2.5) + (1.0 - Math.Abs(l - 0.52) * 2.0);
-                        candidates.Add((Color.FromRgb(r, g, b), score, h));
+                        // Vibrant score favors high saturation
+                        double score = (s * 3.0) + (1.0 - Math.Abs(l - 0.50) * 1.5);
+                        candidates.Add((Color.FromRgb(r, g, b), score));
                     }
                 }
 
                 if (candidates.Count == 0) return null;
 
-                // Pick the highest scoring vibrant color
-                var best = candidates.OrderByDescending(c => c.Score).First().Color;
+                // Sort by vibrancy score
+                var bestColor = candidates.OrderByDescending(c => c.Score).First().Color;
 
-                // Generate complementary second gradient stop
-                RgbToHsl(best.R, best.G, best.B, out double bh, out double bs, out double bl);
-                
+                RgbToHsl(bestColor.R, bestColor.G, bestColor.B, out double bh, out double bs, out double bl);
+
+                // If the best color has virtually zero saturation, fallback
+                if (bs < 0.12) return null;
+
+                // Generate complementary gradient stop
                 double secondHue = (bh + 15.0) % 360.0;
-                double secondLight = Math.Clamp(bl * 0.80, 0.25, 0.75);
-                double secondSat = Math.Clamp(bs * 1.15, 0.40, 1.0);
-                var secondary = HslToRgb(secondHue, secondSat, secondLight);
+                double secondLight = Math.Clamp(bl * 0.80, 0.25, 0.80);
+                double secondSat = Math.Clamp(bs * 1.15, 0.35, 1.0);
+                var secondaryColor = HslToRgb(secondHue, secondSat, secondLight);
 
-                return (best, secondary);
+                return (bestColor, secondaryColor);
             }
             catch
             {

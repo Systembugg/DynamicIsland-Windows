@@ -5363,7 +5363,8 @@ namespace DynamicIsland
                 {
                     CompactAlbumArtBorder.Visibility = Visibility.Visible;
                     CompactVisualizer.Visibility = Visibility.Visible;
-                    CompactVisualizer.SetAccentColor(MediaSessionManager.Instance.CurrentTrack.AppSource);
+                    CompactVisualizer.SetAccentFromImage(MediaSessionManager.Instance.CurrentTrack.Thumbnail, MediaSessionManager.Instance.CurrentTrack.AppSource);
+                    CompactVisualizer.IsPlaying = MediaSessionManager.Instance.CurrentTrack.IsPlaying;
                     baseW = currentMode == ShapeDisplayMode.Notch ? 195 : 180;
                     isMultiActivityActive = true;
                 }
@@ -5414,7 +5415,8 @@ namespace DynamicIsland
                 {
                     CompactAlbumArtBorder.Visibility = Visibility.Visible;
                     CompactVisualizer.Visibility = Visibility.Visible;
-                    CompactVisualizer.SetAccentColor(MediaSessionManager.Instance.CurrentTrack.AppSource);
+                    CompactVisualizer.SetAccentFromImage(MediaSessionManager.Instance.CurrentTrack.Thumbnail, MediaSessionManager.Instance.CurrentTrack.AppSource);
+                    CompactVisualizer.IsPlaying = MediaSessionManager.Instance.CurrentTrack.IsPlaying;
                     baseW = currentMode == ShapeDisplayMode.Notch ? 195 : 180;
                     isMultiActivityActive = true;
                 }
