@@ -126,9 +126,12 @@
                 <!-- LEFT WING: Primary Active Icon (Idle Face / Box / Album Art / Timer Ring / Privacy) -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- Idle Blinking Face Mascot (Apple FaceID Style with Green #37C058) -->
-                    <Grid x:Name="IdleFaceContainer" Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,4,0" Visibility="Visible">
+                    <Grid x:Name="IdleFaceContainer" Width="20" Height="20" VerticalAlignment="Center" Margin="0,0,4,0" Visibility="Visible">
                         <Viewbox Width="17" Height="17" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Canvas Width="38" Height="38">
+                            <Canvas Width="9.5" Height="9.0" ClipToBounds="False">
+                                <Canvas.RenderTransform>
+                                    <TranslateTransform X="-14.2" Y="-15.2"/>
+                                </Canvas.RenderTransform>
                                 <!-- Left Eye -->
                                 <Path x:Name="MascotEyeLeft" Data="M15.2793 18.3047C14.8203 18.3047 14.498 17.9824 14.498 17.5137V16.1855C14.498 15.7168 14.8203 15.3945 15.2793 15.3945C15.7383 15.3945 16.0703 15.7168 16.0703 16.1855V17.5137C16.0703 17.9824 15.7383 18.3047 15.2793 18.3047Z" Fill="#37C058">
                                     <Path.RenderTransform>
