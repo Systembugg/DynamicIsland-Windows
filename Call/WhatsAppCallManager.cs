@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Windows.UI.Notifications;
@@ -28,7 +29,11 @@ namespace DynamicIsland.Call
 
         private UserNotificationListener? _listener;
         private readonly DispatcherTimer _durationTimer;
-        private readonly DispatcherTimer _processWatcherTimer;
+        private readonly DispatcherTimer _scanTimer;
+
+        private AutomationElement? _cachedAcceptButton;
+        private AutomationElement? _cachedDeclineButton;
+        private IntPtr _cachedCallHwnd = IntPtr.Zero;
 
         [DllImport("user32.dll")]
         private static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
@@ -59,8 +64,10 @@ namespace DynamicIsland.Call
                 }
             };
 
-            _processWatcherTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
-            _processWatcherTimer.Tick += (s, e) => CheckWhatsAppCallWindows();
+            // Fast 500ms UI Automation background scanner
+            _scanTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            _scanTimer.Tick += (s, e) => Task.Run(() => ScanForWhatsAppCall());
+            _scanTimer.Start();
 
             Task.Run(async () =>
             {
@@ -148,6 +155,142 @@ namespace DynamicIsland.Call
             catch { }
         }
 
+        private void ScanForWhatsAppCall()
+        {
+            try
+            {
+                var root = AutomationElement.RootElement;
+                if (root == null) return;
+
+                var condWindow = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Window);
+                var windows = root.FindAll(TreeScope.Children, condWindow);
+
+                bool foundCall = false;
+
+                foreach (AutomationElement win in windows)
+                {
+                    try
+                    {
+                        int pid = win.Current.ProcessId;
+                        string winTitle = win.Current.Name ?? "";
+
+                        bool isWhatsApp = false;
+                        try
+                        {
+                            var proc = Process.GetProcessById(pid);
+                            if (proc.ProcessName.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase) ||
+                                proc.ProcessName.Contains("msedgewebview", StringComparison.OrdinalIgnoreCase))
+                            {
+                                isWhatsApp = true;
+                            }
+                        }
+                        catch { }
+
+                        if (!isWhatsApp && !winTitle.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        // Search for Buttons inside this window
+                        var condButtons = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button);
+                        var buttons = win.FindAll(TreeScope.Descendants, condButtons);
+
+                        AutomationElement? btnAccept = null;
+                        AutomationElement? btnDecline = null;
+
+                        foreach (AutomationElement btn in buttons)
+                        {
+                            string btnName = btn.Current.Name ?? "";
+                            if (btnName.Equals("Accept", StringComparison.OrdinalIgnoreCase) || btnName.Contains("Accept", StringComparison.OrdinalIgnoreCase))
+                            {
+                                btnAccept = btn;
+                            }
+                            else if (btnName.Equals("Decline", StringComparison.OrdinalIgnoreCase) || btnName.Contains("Decline", StringComparison.OrdinalIgnoreCase) || btnName.Contains("End call", StringComparison.OrdinalIgnoreCase))
+                            {
+                                btnDecline = btn;
+                            }
+                        }
+
+                        if (btnAccept != null && btnDecline != null)
+                        {
+                            // INCOMING CALL WINDOW FOUND!
+                            foundCall = true;
+                            _cachedAcceptButton = btnAccept;
+                            _cachedDeclineButton = btnDecline;
+                            _cachedCallHwnd = new IntPtr(win.Current.NativeWindowHandle);
+
+                            // Extract Caller Name & Call Type from Text elements
+                            var condText = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text);
+                            var textElements = win.FindAll(TreeScope.Descendants, condText);
+
+                            string callerName = "WhatsApp Caller";
+                            CallType callType = CallType.Voice;
+
+                            foreach (AutomationElement txt in textElements)
+                            {
+                                string t = txt.Current.Name ?? "";
+                                if (t.Equals("WhatsApp", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(t)) continue;
+
+                                if (t.Contains("Video", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    callType = CallType.Video;
+                                }
+                                else if (!t.Contains("Voice", StringComparison.OrdinalIgnoreCase) && !t.Contains("call", StringComparison.OrdinalIgnoreCase) && !t.Contains("Calling", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    callerName = t;
+                                }
+                            }
+
+                            if (CurrentCall == null || CurrentCall.State != CallState.Incoming || CurrentCall.CallerName != callerName)
+                            {
+                                Application.Current.Dispatcher.Invoke(() =>
+                                {
+                                    TriggerIncomingCall(callerName, callType);
+                                });
+                            }
+                            return;
+                        }
+                        else if (btnDecline != null && btnAccept == null)
+                        {
+                            // ONGOING CALL (Connected)
+                            foundCall = true;
+                            _cachedDeclineButton = btnDecline;
+                            _cachedCallHwnd = new IntPtr(win.Current.NativeWindowHandle);
+
+                            if (CurrentCall == null || CurrentCall.State == CallState.Incoming || CurrentCall.State == CallState.None)
+                            {
+                                Application.Current.Dispatcher.Invoke(() =>
+                                {
+                                    if (CurrentCall == null)
+                                    {
+                                        CurrentCall = new CallInfo
+                                        {
+                                            CallerName = "WhatsApp Caller",
+                                            Subtitle = "WhatsApp Audio",
+                                            State = CallState.OngoingVoice,
+                                            StartTime = DateTime.UtcNow
+                                        };
+                                    }
+                                    AcceptCall();
+                                });
+                            }
+                            return;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (!foundCall && CurrentCall != null && (CurrentCall.State == CallState.OngoingVoice || CurrentCall.State == CallState.OngoingVideo || CurrentCall.State == CallState.Incoming))
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        EndCall();
+                    });
+                }
+            }
+            catch { }
+        }
+
         public void TriggerIncomingCall(string callerName, CallType type, uint? notificationId = null)
         {
             CurrentCall = new CallInfo
@@ -161,7 +304,6 @@ namespace DynamicIsland.Call
                 NotificationId = notificationId
             };
 
-            _processWatcherTimer.Start();
             OnIncomingCall?.Invoke(CurrentCall);
         }
 
@@ -174,8 +316,20 @@ namespace DynamicIsland.Call
 
             _durationTimer.Start();
 
-            // Bring WhatsApp to foreground or activate window
-            ActivateWhatsAppWindow();
+            // Programmatically invoke WhatsApp Accept button
+            try
+            {
+                if (_cachedAcceptButton != null)
+                {
+                    var invoker = _cachedAcceptButton.GetCurrentPattern(InvokePattern.Pattern) as InvokePattern;
+                    invoker?.Invoke();
+                }
+                else if (_cachedCallHwnd != IntPtr.Zero)
+                {
+                    SetForegroundWindow(_cachedCallHwnd);
+                }
+            }
+            catch { }
 
             OnCallAnswered?.Invoke(CurrentCall);
         }
@@ -187,7 +341,20 @@ namespace DynamicIsland.Call
             CurrentCall.State = CallState.Ended;
             _durationTimer.Stop();
 
-            CloseWhatsAppCallWindow();
+            // Programmatically invoke WhatsApp Decline button
+            try
+            {
+                if (_cachedDeclineButton != null)
+                {
+                    var invoker = _cachedDeclineButton.GetCurrentPattern(InvokePattern.Pattern) as InvokePattern;
+                    invoker?.Invoke();
+                }
+                else if (_cachedCallHwnd != IntPtr.Zero)
+                {
+                    PostMessage(_cachedCallHwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                }
+            }
+            catch { }
 
             OnCallEnded?.Invoke(CurrentCall);
 
@@ -205,82 +372,7 @@ namespace DynamicIsland.Call
             DeclineCall();
         }
 
-        private void CheckWhatsAppCallWindows()
-        {
-            if (CurrentCall == null) return;
-
-            IntPtr callHwnd = FindWhatsAppCallWindow();
-
-            if (CurrentCall.State == CallState.Incoming)
-            {
-                if (callHwnd != IntPtr.Zero)
-                {
-                    // Window appeared / call connected
-                    AcceptCall();
-                }
-            }
-            else if (CurrentCall.State == CallState.OngoingVoice || CurrentCall.State == CallState.OngoingVideo)
-            {
-                if (callHwnd == IntPtr.Zero && (DateTime.UtcNow - CurrentCall.StartTime).TotalSeconds > 4)
-                {
-                    // Call window closed -> call finished
-                    EndCall();
-                    _processWatcherTimer.Stop();
-                }
-            }
-        }
-
-        private IntPtr FindWhatsAppCallWindow()
-        {
-            IntPtr found = IntPtr.Zero;
-            try
-            {
-                EnumWindows((hWnd, lParam) =>
-                {
-                    GetWindowThreadProcessId(hWnd, out uint pid);
-                    try
-                    {
-                        var proc = Process.GetProcessById((int)pid);
-                        if (proc.ProcessName.Contains("WhatsApp", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var sb = new StringBuilder(256);
-                            GetWindowText(hWnd, sb, 256);
-                            string title = sb.ToString();
-                            if (title.Contains("Call", StringComparison.OrdinalIgnoreCase) || 
-                                title.Contains("WhatsApp Call", StringComparison.OrdinalIgnoreCase))
-                            {
-                                found = hWnd;
-                                return false;
-                            }
-                        }
-                    }
-                    catch { }
-                    return true;
-                }, IntPtr.Zero);
-            }
-            catch { }
-            return found;
-        }
-
-        private void ActivateWhatsAppWindow()
-        {
-            IntPtr hwnd = FindWhatsAppCallWindow();
-            if (hwnd != IntPtr.Zero)
-            {
-                SetForegroundWindow(hwnd);
-            }
-        }
-
-        private void CloseWhatsAppCallWindow()
-        {
-            IntPtr hwnd = FindWhatsAppCallWindow();
-            if (hwnd != IntPtr.Zero)
-            {
-                PostMessage(hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-            }
-        }
-
-        public void SimulateTestCall(string callerName = "Tamia Castle", bool isVideo = false)
+        public void SimulateTestCall(string callerName = "Mata Shri 👼", bool isVideo = false)
         {
             TriggerIncomingCall(callerName, isVideo ? CallType.Video : CallType.Voice);
         }

@@ -153,6 +153,16 @@ namespace DynamicIsland
 
             menu.Items.Add(new Separator());
 
+            var callVoiceItem = new MenuItem { Header = "📞 Preview WhatsApp Voice Call", Foreground = new SolidColorBrush(Color.FromRgb(0x37, 0xC0, 0x58)) };
+            callVoiceItem.Click += (s, e) => DynamicIsland.Call.WhatsAppCallManager.Instance.SimulateTestCall("Mata Shri 👼", false);
+            menu.Items.Add(callVoiceItem);
+
+            var callVideoItem = new MenuItem { Header = "📹 Preview WhatsApp Video Call", Foreground = new SolidColorBrush(Color.FromRgb(0x37, 0xC0, 0x58)) };
+            callVideoItem.Click += (s, e) => DynamicIsland.Call.WhatsAppCallManager.Instance.SimulateTestCall("Mata Shri 👼", true);
+            menu.Items.Add(callVideoItem);
+
+            menu.Items.Add(new Separator());
+
             var exitItem = new MenuItem { Header = "❌ Exit Dynamic Island", Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x45, 0x3A)) };
             exitItem.Click += (s, e) => mainWindow.CloseApp();
             menu.Items.Add(exitItem);
