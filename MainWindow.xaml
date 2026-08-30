@@ -4,6 +4,7 @@
         xmlns:localMedia="clr-namespace:DynamicIsland.Media"
         xmlns:localTimer="clr-namespace:DynamicIsland.Timer"
         xmlns:localDock="clr-namespace:DynamicIsland.Dock"
+        xmlns:localCall="clr-namespace:DynamicIsland.Call"
         Title="DynamicIsland" 
         Height="400" Width="800"
         WindowStyle="None" 
@@ -91,6 +92,12 @@
         <Geometry x:Key="IconCompose">M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z</Geometry>
         <!-- Apple Search Icon -->
         <Geometry x:Key="IconSearch">M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z</Geometry>
+        
+        <!-- Official Apple Call SVG Geometries (User Provided SVGs) -->
+        <Geometry x:Key="IconCallAccept">M 5.8 15.4 C 2.5 12.1 0 8.1 0 4.8 C 0 3.3 0.5 2.0 1.6 0.9 C 2.3 0.3 3.0 0 3.8 0 C 4.4 0 5.0 0.2 5.4 0.8 L 7.8 4.2 C 8.2 4.8 8.4 5.2 8.4 5.6 C 8.4 6.2 8.1 6.6 7.6 7.1 L 6.8 8.0 C 6.7 8.1 6.6 8.2 6.6 8.4 C 6.6 8.5 6.7 8.7 6.7 8.8 C 7.1 9.5 8.1 10.8 9.3 11.9 C 10.4 13.0 11.6 14.0 12.3 14.4 C 12.4 14.5 12.6 14.6 12.8 14.6 C 12.9 14.6 13.1 14.5 13.2 14.4 L 14.0 13.6 C 14.5 13.1 15.0 12.8 15.5 12.8 C 15.9 12.8 16.4 13.0 16.9 13.3 L 20.4 15.8 C 21.0 16.2 21.2 16.8 21.2 17.3 C 21.2 18.1 20.8 18.9 20.2 19.6 C 19.2 20.7 17.9 21.2 16.4 21.2 C 13.1 21.2 9.1 18.7 5.8 15.4 Z</Geometry>
+        <Geometry x:Key="IconCallDecline">M 13.5 0 C 18.5 0 23.0 1.0 25.4 3.4 C 26.4 4.4 27.0 5.7 27.0 7.2 C 26.9 8.2 26.6 9.0 26.1 9.5 C 25.6 9.9 25.1 10.2 24.4 10.1 L 20.2 9.4 C 19.6 9.3 19.1 9.1 18.8 8.8 C 18.5 8.4 18.3 7.8 18.3 7.1 L 18.3 6.0 C 18.3 5.8 18.2 5.6 18.1 5.5 C 18.0 5.4 17.8 5.3 17.7 5.3 C 16.9 5.1 15.4 4.9 13.5 4.9 C 11.6 4.9 10.0 5.1 9.2 5.3 C 9.1 5.3 8.9 5.4 8.8 5.5 C 8.7 5.6 8.6 5.8 8.6 6.0 V 7.1 C 8.6 7.8 8.5 8.4 8.1 8.8 C 7.8 9.1 7.4 9.3 6.7 9.4 L 2.5 10.1 C 1.9 10.2 1.3 10.0 0.9 9.5 C 0.4 9.0 0.1 8.2 0.0 7.2 C 0.0 5.7 0.5 4.4 1.6 3.4 C 3.9 1.0 8.5 0 13.5 0 Z</Geometry>
+        <Geometry x:Key="IconCallPhoneGreen">M 4.6 12.2 C 2.0 9.5 0 6.4 0 3.8 C 0 2.6 0.4 1.6 1.3 0.8 C 1.8 0.3 2.4 0 3.0 0 C 3.5 0 4.0 0.2 4.3 0.7 L 6.2 3.3 C 6.5 3.8 6.7 4.1 6.7 4.5 C 6.7 4.9 6.5 5.3 6.0 5.7 L 5.4 6.3 C 5.3 6.4 5.3 6.5 5.3 6.7 C 5.3 6.8 5.3 6.9 5.4 7.0 C 5.7 7.6 6.5 8.5 7.4 9.4 C 8.3 10.3 9.2 11.1 9.8 11.4 C 9.9 11.5 10.0 11.5 10.1 11.5 C 10.3 11.5 10.4 11.5 10.5 11.4 L 11.1 10.8 C 11.5 10.4 11.9 10.1 12.3 10.1 C 12.7 10.1 13.0 10.3 13.4 10.6 L 16.2 12.5 C 16.6 12.8 16.8 13.3 16.8 13.8 C 16.8 14.4 16.5 15.0 16.0 15.5 C 15.2 16.4 14.2 16.8 13.0 16.8 C 10.4 16.8 7.3 14.8 4.6 12.2 Z</Geometry>
+        <Geometry x:Key="IconCallVideoGreen">M 3.1 14.6 C 1.1 14.6 0 13.6 0 11.7 V 3.0 C 0 1.1 1.2 0 3.1 0 H 12.3 C 14.2 0 15.3 1.1 15.3 3.0 V 11.6 C 15.3 13.5 14.2 14.6 12.2 14.6 H 3.1 Z M 16.6 10.3 V 4.4 L 19.5 1.9 C 19.9 1.6 20.3 1.4 20.7 1.4 C 21.5 1.4 22.0 1.9 22.0 2.7 V 12.0 C 22.0 12.8 21.5 13.3 20.7 13.3 C 20.3 13.3 19.9 13.1 19.5 12.8 L 16.6 10.3 Z</Geometry>
     </Window.Resources>
     
     <Grid HorizontalAlignment="Center" VerticalAlignment="Top">
@@ -190,6 +197,17 @@
                         <Path Data="{StaticResource IconScreenShareLeft}" Fill="#37A3DE" Width="17" Height="15" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>
                     
+                    <!-- Ongoing Voice Call (Left Wing - Green Phone + Live Duration) -->
+                    <StackPanel x:Name="CallCompactVoiceLeftContainer" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="CallCompact_MouseLeftButtonDown" Visibility="Collapsed">
+                        <Path Data="{StaticResource IconCallPhoneGreen}" Fill="#37C058" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBlock x:Name="TxtCallCompactDuration" Text="00:00" Foreground="#37C058" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Ongoing Video Call (Left Wing - Green Video Camera) -->
+                    <Grid x:Name="CallCompactVideoLeftContainer" Width="22" Height="20" Margin="0,0,6,0" Cursor="Hand" MouseLeftButtonDown="CallCompact_MouseLeftButtonDown" Visibility="Collapsed" VerticalAlignment="Center">
+                        <Path Data="{StaticResource IconCallVideoGreen}" Fill="#37C058" Width="19" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+
                     <!-- Privacy Indicator Dot (Left Wing - Shown during Active Music / Timer / Dock / Network) -->
                     <Grid x:Name="PrivacyDotLeftContainer" Visibility="Collapsed" Width="18" Height="18" Margin="0,0,4,0" VerticalAlignment="Center">
                         <Ellipse x:Name="PrivacyDotLeftGlow" Width="15" Height="15" Fill="#44FF3B30" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -206,6 +224,9 @@
 
                 <!-- RIGHT WING: Dynamic Indicators (Clean Single-Activity by default, Multi on Hover) -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Ongoing Call Waveform (Right Wing - 14 Dual-Tone Bars) -->
+                    <localCall:CallWaveformControl x:Name="CallCompactWaveform" Margin="0,0,4,0" Cursor="Hand" MouseLeftButtonDown="CallCompact_MouseLeftButtonDown" Visibility="Collapsed"/>
+
                     <!-- Screen Share Compact Gray Screen / Display Icon (Right Wing - Matching media_1787985144587.png 1:1) -->
                     <Grid x:Name="ScreenShareCompactRightContainer" Width="20" Height="20" Margin="0,0,4,0" Cursor="Hand" MouseLeftButtonDown="ScreenShareCompact_MouseLeftButtonDown" Visibility="Collapsed" VerticalAlignment="Center" ToolTip="Screen Sharing Active • Click to manage">
                         <Path Data="{StaticResource IconScreenShareRightTarget}" Fill="#8F8F8F" Width="18" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -1014,6 +1035,43 @@
                         </Grid>
                     </Grid>
 
+                    <!-- CALL EXPANDED VIEW (When ongoing call is tapped/expanded) -->
+                    <Grid x:Name="ViewCallExpandedBody" VerticalAlignment="Stretch" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header Info -->
+                        <Grid Grid.Row="0" Margin="0,4,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Width="48" Height="48" CornerRadius="24" Background="#2C2C2E" ClipToBounds="True">
+                                <TextBlock x:Name="TxtCallExpandedAvatar" Text="👤" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#8E8E93"/>
+                            </Border>
+
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+                                <TextBlock x:Name="TxtCallExpandedName" Text="Tamia Castle" Foreground="#FFFFFF" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="TxtCallExpandedSubtitle" Text="01:23 • WhatsApp Call" Foreground="#37C058" FontSize="12.5" FontWeight="Medium" Margin="0,2,0,0"/>
+                            </StackPanel>
+
+                            <localCall:CallWaveformControl Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        </Grid>
+
+                        <!-- End Call Action Bar -->
+                        <Border Grid.Row="2" Height="44" CornerRadius="22" Background="#FA3532" Cursor="Hand" HorizontalAlignment="Center" Padding="32,0" Margin="0,10,0,2" MouseLeftButtonDown="BtnExpandedEndCall_MouseLeftButtonDown">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path Data="{StaticResource IconCallDecline}" Fill="White" Width="18" Height="18" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <TextBlock Text="End Call" Foreground="#FFFFFF" FontSize="13.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
                 </Grid>
             </Grid>
 
@@ -1515,6 +1573,44 @@
 
                 <!-- RIGHT: Status Tag "On" (Apple Green) / "Off" (Apple Gray) -->
                 <TextBlock x:Name="TxtCapsLockStatus" Grid.Column="2" Text="On" Foreground="#30D158" FontSize="13.5" FontWeight="Bold" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- 10. INCOMING CALL HUD BANNER (Exact Match to User SVG 1: 367x86) -->
+            <Grid x:Name="IncomingCallHudView" Width="367" Height="86" VerticalAlignment="Center" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: Circular Avatar (56x56) -->
+                <Grid Grid.Column="0" Width="56" Height="56" Margin="16,0,12,0" VerticalAlignment="Center">
+                    <Border CornerRadius="28" Background="#2C2C2E" ClipToBounds="True">
+                        <Grid>
+                            <Image x:Name="ImgIncomingCallAvatar" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                            <TextBlock x:Name="TxtIncomingCallInitial" Text="👤" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#8E8E93"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Center: Caller Info -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <TextBlock x:Name="TxtIncomingCallSubtitle" Text="WhatsApp Audio" Foreground="#A4A4A9" FontSize="12.5" FontWeight="Medium"/>
+                    <TextBlock x:Name="TxtIncomingCallName" Text="Tamia Castle" Foreground="#FFFFFF" FontSize="16.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <!-- Right: Action Buttons (Decline & Accept) -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <!-- Red Decline Button (#FA3532) -->
+                    <Border x:Name="BtnIncomingCallDecline" Width="52" Height="52" CornerRadius="26" Background="#FA3532" Cursor="Hand" Margin="0,0,10,0" ToolTip="Decline Call" MouseLeftButtonDown="BtnIncomingCallDecline_MouseLeftButtonDown">
+                        <Path Data="{StaticResource IconCallDecline}" Fill="White" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <!-- Green Accept Button (#37C058) -->
+                    <Border x:Name="BtnIncomingCallAccept" Width="52" Height="52" CornerRadius="26" Background="#37C058" Cursor="Hand" ToolTip="Accept Call" MouseLeftButtonDown="BtnIncomingCallAccept_MouseLeftButtonDown">
+                        <Path Data="{StaticResource IconCallAccept}" Fill="White" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </StackPanel>
             </Grid>
 
         </Grid>

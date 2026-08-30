@@ -20,6 +20,7 @@ using DynamicIsland.Timer;
 using DynamicIsland.Dock;
 using DynamicIsland.Network;
 using DynamicIsland.AirDrop;
+using DynamicIsland.Call;
 
 namespace DynamicIsland
 {
@@ -46,7 +47,8 @@ namespace DynamicIsland
         Bluetooth,
         Network,
         ScreenMirroring,
-        Clipboard
+        Clipboard,
+        Call
     }
 
     public enum ClipboardSubTab
@@ -68,6 +70,7 @@ namespace DynamicIsland
         private bool isBluetoothHudActive = false;
         private bool isClipboardHudActive = false;
         private bool isScreenMirroringHudActive = false;
+        private bool isIncomingCallActive = false;
         private bool isDndOn = false;
         private bool isInitialDndLoaded = false;
         private bool isLyricsViewActive = false;
@@ -621,6 +624,56 @@ namespace DynamicIsland
             NetworkSpeedManager.Instance.OnSpeedUpdated += () =>
             {
                 Dispatcher.Invoke(UpdateNetworkVisuals);
+            };
+
+            // Real-Time WhatsApp Call Listener
+            WhatsAppCallManager.Instance.OnIncomingCall += call =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    isIncomingCallActive = true;
+                    TxtIncomingCallSubtitle.Text = call.Subtitle;
+                    TxtIncomingCallName.Text = call.CallerName;
+                    TxtIncomingCallInitial.Text = !string.IsNullOrWhiteSpace(call.CallerName) ? call.CallerName.Substring(0, 1).ToUpperInvariant() : "👤";
+
+                    UpdateIndicatorVisuals();
+                });
+            };
+
+            WhatsAppCallManager.Instance.OnCallAnswered += call =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    isIncomingCallActive = false;
+                    currentExpandedTab = ExpandedActivityTab.Call;
+                    UpdateIndicatorVisuals();
+                });
+            };
+
+            WhatsAppCallManager.Instance.OnCallEnded += call =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    isIncomingCallActive = false;
+                    if (currentExpandedTab == ExpandedActivityTab.Call)
+                    {
+                        currentExpandedTab = ExpandedActivityTab.Shelf;
+                        isExpanded = false;
+                    }
+                    UpdateIndicatorVisuals();
+                });
+            };
+
+            WhatsAppCallManager.Instance.OnDurationTick += duration =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    string durText = duration.TotalHours >= 1 
+                        ? duration.ToString(@"hh\:mm\:ss") 
+                        : duration.ToString(@"mm\:ss");
+                    TxtCallCompactDuration.Text = durText;
+                    TxtCallExpandedSubtitle.Text = $"{durText} • {(WhatsAppCallManager.Instance.CurrentCall?.Type == CallType.Video ? "WhatsApp Video" : "WhatsApp Audio")}";
+                });
             };
 
             InitMediaSession();
@@ -1191,6 +1244,32 @@ namespace DynamicIsland
         {
             e.Handled = true;
             ClipboardHistoryManager.Instance.ClearClipboard();
+        }
+
+        private void BtnIncomingCallAccept_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            WhatsAppCallManager.Instance.AcceptCall();
+        }
+
+        private void BtnIncomingCallDecline_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            WhatsAppCallManager.Instance.DeclineCall();
+        }
+
+        private void CallCompact_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            currentExpandedTab = ExpandedActivityTab.Call;
+            isExpanded = true;
+            UpdateIndicatorVisuals();
+        }
+
+        private void BtnExpandedEndCall_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            WhatsAppCallManager.Instance.EndCall();
         }
 
         private void TxtClipboardSearch_TextChanged(object sender, TextChangedEventArgs e)
@@ -3834,6 +3913,7 @@ namespace DynamicIsland
             ScreenMirroringHudView.Visibility = Visibility.Collapsed;
             ClipboardHudView.Visibility = Visibility.Collapsed;
             CapsLockHudView.Visibility = Visibility.Collapsed;
+            IncomingCallHudView.Visibility = Visibility.Collapsed;
             UniversalExpandedContainer.Visibility = Visibility.Collapsed;
         }
 
@@ -3846,6 +3926,7 @@ namespace DynamicIsland
             if (ViewNetworkBody != null) ViewNetworkBody.Visibility = Visibility.Collapsed;
             if (ViewScreenMirroringBody != null) ViewScreenMirroringBody.Visibility = Visibility.Collapsed;
             if (ViewClipboardBody != null) ViewClipboardBody.Visibility = Visibility.Collapsed;
+            if (ViewCallExpandedBody != null) ViewCallExpandedBody.Visibility = Visibility.Collapsed;
         }
 
         private CancellationTokenSource? _clipboardHudCts;
@@ -5184,6 +5265,23 @@ namespace DynamicIsland
 
             DndStealthIndicator.Visibility = isDndOn ? Visibility.Visible : Visibility.Collapsed;
 
+            if (isIncomingCallActive)
+            {
+                PrivacyDotLeftContainer.Visibility = Visibility.Collapsed;
+                PrivacyDotRightContainer.Visibility = Visibility.Collapsed;
+                IdleFaceContainer.Visibility = Visibility.Collapsed;
+                HideAllHudViews();
+                IncomingCallHudView.Visibility = Visibility.Visible;
+                double targetW = 367;
+                double targetH = currentMode == ShapeDisplayMode.Notch ? 95 : 86;
+                AnimateSize(targetW, targetH);
+                return;
+            }
+            else
+            {
+                IncomingCallHudView.Visibility = Visibility.Collapsed;
+            }
+
             if (isClipboardHudActive)
             {
                 PrivacyDotLeftContainer.Visibility = Visibility.Collapsed;
@@ -5430,6 +5528,18 @@ namespace DynamicIsland
                     double targetH = currentMode == ShapeDisplayMode.Notch ? 340 : 325;
                     AnimateSize(targetW, targetH);
                 }
+                else if (currentExpandedTab == ExpandedActivityTab.Call)
+                {
+                    ViewCallExpandedBody.Visibility = Visibility.Visible;
+                    TxtCallExpandedName.Text = WhatsAppCallManager.Instance.CurrentCall?.CallerName ?? "WhatsApp Caller";
+                    string durText = WhatsAppCallManager.Instance.CurrentCall != null
+                        ? (WhatsAppCallManager.Instance.CurrentCall.Duration.TotalHours >= 1 ? WhatsAppCallManager.Instance.CurrentCall.Duration.ToString(@"hh\:mm\:ss") : WhatsAppCallManager.Instance.CurrentCall.Duration.ToString(@"mm\:ss"))
+                        : "00:00";
+                    TxtCallExpandedSubtitle.Text = $"{durText} • {(WhatsAppCallManager.Instance.CurrentCall?.Type == CallType.Video ? "WhatsApp Video" : "WhatsApp Audio")}";
+                    double targetW = 400;
+                    double targetH = currentMode == ShapeDisplayMode.Notch ? 175 : 160;
+                    AnimateSize(targetW, targetH);
+                }
                 else
                 {
                     // Home
@@ -5461,13 +5571,36 @@ namespace DynamicIsland
                 AirDropCompactProgressContainer.Visibility = Visibility.Collapsed;
                 ScreenShareCompactLeftContainer.Visibility = Visibility.Collapsed;
                 ScreenShareCompactRightContainer.Visibility = Visibility.Collapsed;
+                CallCompactVoiceLeftContainer.Visibility = Visibility.Collapsed;
+                CallCompactVideoLeftContainer.Visibility = Visibility.Collapsed;
+                CallCompactWaveform.Visibility = Visibility.Collapsed;
 
                 double baseW = currentMode == ShapeDisplayMode.Notch ? notchBaseWidth : islandBaseWidth;
                 double baseH = currentMode == ShapeDisplayMode.Notch ? notchHeight : islandHeight;
 
                 bool isMultiActivityActive = false;
 
-                if (isAirDropHudActive || isAirDropTransferActive)
+                if (WhatsAppCallManager.Instance.IsCallActive)
+                {
+                    if (WhatsAppCallManager.Instance.CurrentCall?.Type == CallType.Video)
+                    {
+                        CallCompactVideoLeftContainer.Visibility = Visibility.Visible;
+                        CallCompactWaveform.Visibility = Visibility.Visible;
+                        baseW = currentMode == ShapeDisplayMode.Notch ? 175 : 165;
+                    }
+                    else
+                    {
+                        CallCompactVoiceLeftContainer.Visibility = Visibility.Visible;
+                        CallCompactWaveform.Visibility = Visibility.Visible;
+                        string durText = WhatsAppCallManager.Instance.CurrentCall != null
+                            ? (WhatsAppCallManager.Instance.CurrentCall.Duration.TotalHours >= 1 ? WhatsAppCallManager.Instance.CurrentCall.Duration.ToString(@"hh\:mm\:ss") : WhatsAppCallManager.Instance.CurrentCall.Duration.ToString(@"mm\:ss"))
+                            : "00:00";
+                        TxtCallCompactDuration.Text = durText;
+                        baseW = currentMode == ShapeDisplayMode.Notch ? 215 : 200;
+                    }
+                    isMultiActivityActive = true;
+                }
+                else if (isAirDropHudActive || isAirDropTransferActive)
                 {
                     AirDropCompactContainer.Visibility = Visibility.Visible;
                     AirDropCompactProgressContainer.Visibility = Visibility.Visible;
