@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace DynamicIsland.Media
@@ -14,6 +15,41 @@ namespace DynamicIsland.Media
         private readonly double[] targetHeights;
         private readonly Random rng = new Random();
         private double phase = 0;
+        private bool hasRealSpectrumData = false;
+        private DateTime lastSpectrumTime = DateTime.MinValue;
+
+        public void SetAccentFromImage(BitmapSource? thumbnail, MediaAppSource appSource)
+        {
+            if (thumbnail != null)
+            {
+                var palette = ColorExtractor.ExtractVibrantPalette(thumbnail);
+                if (palette.HasValue)
+                {
+                    var gradient = new LinearGradientBrush(
+                        palette.Value.Primary,
+                        palette.Value.Secondary,
+                        new Point(0, 0),
+                        new Point(0, 1)
+                    );
+                    ApplyCustomBrush(gradient);
+                    return;
+                }
+            }
+
+            // Fallback to signature App Source color
+            SetAccentColor(appSource);
+        }
+
+        public void ApplyCustomBrush(Brush brush)
+        {
+            if (bars != null)
+            {
+                foreach (var bar in bars)
+                {
+                    if (bar != null) bar.Background = brush;
+                }
+            }
+        }
 
         public void SetAccentColor(MediaAppSource appSource)
         {
@@ -21,7 +57,6 @@ namespace DynamicIsland.Media
             switch (appSource)
             {
                 case MediaAppSource.Spotify:
-                    // Spotify Vibrant Green (#1ED760 / #1DB954)
                     brush = new LinearGradientBrush(
                         Color.FromRgb(0x22, 0xE6, 0x6B),
                         Color.FromRgb(0x1D, 0xB9, 0x54),
@@ -34,7 +69,6 @@ namespace DynamicIsland.Media
                 case MediaAppSource.Chrome:
                 case MediaAppSource.Brave:
                 case MediaAppSource.Firefox:
-                    // YouTube / Browser Red (#FF4B4B / #FF0000)
                     brush = new LinearGradientBrush(
                         Color.FromRgb(0xFF, 0x4B, 0x4B),
                         Color.FromRgb(0xFF, 0x00, 0x00),
@@ -44,15 +78,6 @@ namespace DynamicIsland.Media
                     break;
 
                 case MediaAppSource.AppleMusic:
-                    // Apple Music Signature Magenta/Pink
-                    brush = new LinearGradientBrush(
-                        Color.FromRgb(0xC7, 0x59, 0xC9),
-                        Color.FromRgb(0xFA, 0x2D, 0x48),
-                        new Point(0, 0),
-                        new Point(0, 1)
-                    );
-                    break;
-
                 default:
                     brush = new LinearGradientBrush(
                         Color.FromRgb(0xC7, 0x59, 0xC9),
@@ -63,13 +88,7 @@ namespace DynamicIsland.Media
                     break;
             }
 
-            if (bars != null)
-            {
-                foreach (var bar in bars)
-                {
-                    if (bar != null) bar.Background = brush;
-                }
-            }
+            ApplyCustomBrush(brush);
         }
 
         private bool isPlaying = false;
@@ -81,10 +100,22 @@ namespace DynamicIsland.Media
                 isPlaying = value;
                 if (isPlaying)
                 {
+                    try
+                    {
+                        AudioSpectrumCaptureManager.Instance.Start();
+                    }
+                    catch { }
+
                     if (!animTimer.IsEnabled) animTimer.Start();
                 }
                 else
                 {
+                    try
+                    {
+                        AudioSpectrumCaptureManager.Instance.Stop();
+                    }
+                    catch { }
+
                     for (int i = 0; i < currentHeights.Length; i++)
                     {
                         targetHeights[i] = 3.0;
@@ -117,8 +148,21 @@ namespace DynamicIsland.Media
                 targetHeights[i] = 3.0;
             }
 
-            animTimer.Interval = TimeSpan.FromMilliseconds(40); // 25 FPS
+            animTimer.Interval = TimeSpan.FromMilliseconds(33); // 30 FPS smooth physics loop
             animTimer.Tick += AnimTimer_Tick;
+
+            // Connect real audio spectrum capture event
+            AudioSpectrumCaptureManager.Instance.OnSpectrumUpdated += (bands) =>
+            {
+                hasRealSpectrumData = true;
+                lastSpectrumTime = DateTime.UtcNow;
+
+                for (int i = 0; i < barCount && i < bands.Length; i++)
+                {
+                    // Scale from resting height (3px) up to 15px max height
+                    targetHeights[i] = 3.0 + (bands[i] * 12.0);
+                }
+            };
 
             UpdateBarVisibility();
         }
@@ -135,9 +179,11 @@ namespace DynamicIsland.Media
         {
             phase += 0.35;
 
-            if (isPlaying)
+            // If real spectrum data hasn't arrived in last 300ms, use organic harmonic fallback
+            bool isSpectrumStale = (DateTime.UtcNow - lastSpectrumTime).TotalMilliseconds > 300;
+
+            if (isPlaying && (!hasRealSpectrumData || isSpectrumStale))
             {
-                // Dynamic harmonic frequencies + organic amplitude variation matching Apple Music Equalizer
                 for (int i = 0; i < barCount; i++)
                 {
                     double s1 = Math.Sin(phase * 1.2 + (i * 1.3));
@@ -151,14 +197,14 @@ namespace DynamicIsland.Media
                 }
             }
 
-            // Smooth interpolation
+            // Smooth spring damping interpolation
             bool stillMoving = false;
             for (int i = 0; i < barCount; i++)
             {
                 double diff = targetHeights[i] - currentHeights[i];
-                if (Math.Abs(diff) > 0.15)
+                if (Math.Abs(diff) > 0.12)
                 {
-                    currentHeights[i] += diff * 0.45;
+                    currentHeights[i] += diff * 0.50; // Fast spring responsiveness
                     bars[i].Height = currentHeights[i];
                     stillMoving = true;
                 }

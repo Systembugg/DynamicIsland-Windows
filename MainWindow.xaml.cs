@@ -2690,7 +2690,7 @@ namespace DynamicIsland
                     TxtLyricsArtist.Text = string.IsNullOrWhiteSpace(track.Artist) ? "" : track.Artist;
                     AppSourceBadge.SetAppSource(track.AppSource);
                     LyricsAppSourceBadge.SetAppSource(track.AppSource);
-                    CompactVisualizer.SetAccentColor(track.AppSource);
+                    CompactVisualizer.SetAccentFromImage(track.Thumbnail, track.AppSource);
 
                     if (track.Thumbnail != null)
                     {
