@@ -98,22 +98,10 @@ namespace DynamicIsland.Media
                 isPlaying = value;
                 if (isPlaying)
                 {
-                    try
-                    {
-                        AudioSpectrumCaptureManager.Instance.Start();
-                    }
-                    catch { }
-
                     if (!animTimer.IsEnabled) animTimer.Start();
                 }
                 else
                 {
-                    try
-                    {
-                        AudioSpectrumCaptureManager.Instance.Stop();
-                    }
-                    catch { }
-
                     for (int i = 0; i < currentHeights.Length; i++)
                     {
                         targetHeights[i] = 3.0;
@@ -148,17 +136,8 @@ namespace DynamicIsland.Media
                 velocities[i] = 0.0;
             }
 
-            animTimer.Interval = TimeSpan.FromMilliseconds(16); // 60 FPS ultra-smooth physics rendering loop
+            animTimer.Interval = TimeSpan.FromMilliseconds(16); // 60 FPS smooth rendering loop
             animTimer.Tick += AnimTimer_Tick;
-
-            AudioSpectrumCaptureManager.Instance.OnSpectrumUpdated += (bands) =>
-            {
-                for (int i = 0; i < barCount && i < bands.Length; i++)
-                {
-                    // Scale cleanly from resting height (3.0px) to peak (14.5px)
-                    targetHeights[i] = 3.0 + (bands[i] * 11.5);
-                }
-            };
 
             UpdateBarVisibility();
         }
@@ -173,25 +152,30 @@ namespace DynamicIsland.Media
 
         private void AnimTimer_Tick(object? sender, EventArgs e)
         {
-            phase += 0.35;
+            phase += 0.28;
 
-            bool hasLiveSound = AudioSpectrumCaptureManager.Instance.HasLiveAudio;
-
-            if (isPlaying && !hasLiveSound)
+            if (isPlaying)
             {
-                // Smooth harmonic sine idle motion when audio is silent
+                // Default Apple Smooth Harmonic Rhythmic Wave
                 for (int i = 0; i < barCount; i++)
                 {
-                    double s1 = Math.Sin(phase * 0.9 + (i * 1.2));
-                    double s2 = Math.Cos(phase * 0.6 - (i * 0.8));
-                    double mag = Math.Abs(s1 * 0.5 + s2 * 0.4);
-                    targetHeights[i] = 3.0 + Math.Clamp(mag, 0.1, 0.85) * 7.5;
+                    double s1 = Math.Sin((phase * 0.8) + (i * 1.15));
+                    double s2 = Math.Cos((phase * 0.45) - (i * 0.75));
+                    double mag = Math.Abs((s1 * 0.55) + (s2 * 0.45));
+                    targetHeights[i] = 3.0 + (Math.Clamp(mag, 0.12, 0.95) * 10.5);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < barCount; i++)
+                {
+                    targetHeights[i] = 3.0;
                 }
             }
 
-            // Apple Critically Damped Spring Physics (stiffness 0.22, damping 0.74)
-            double stiffness = 0.22;
-            double damping = 0.74;
+            // Apple Critically Damped Spring Physics (stiffness 0.20, damping 0.76)
+            double stiffness = 0.20;
+            double damping = 0.76;
             bool stillMoving = false;
 
             for (int i = 0; i < barCount; i++)
