@@ -16,7 +16,7 @@ namespace DynamicIsland.Media
 
         public double[] BandEnergies { get; } = new double[4];
         private readonly double[] peakEnergies = new double[4];
-        private double maxObservedEnergy = 0.05;
+        private double maxObservedEnergy = 0.04;
 
         public event Action<double[]>? OnSpectrumUpdated;
 
@@ -89,7 +89,6 @@ namespace DynamicIsland.Media
             int channels = Math.Max(1, format.Channels);
             int sampleRate = format.SampleRate > 0 ? format.SampleRate : 48000;
 
-            // Extract float samples from 32-bit Float, 16-bit PCM, or 24-bit PCM
             if (format.BitsPerSample == 32)
             {
                 int floatCount = e.BytesRecorded / 4;
@@ -129,7 +128,6 @@ namespace DynamicIsland.Media
         {
             int n = audioBuffer.Length;
 
-            // Calculate overall RMS signal level
             double sumSq = 0;
             for (int i = 0; i < n; i++)
             {
@@ -137,25 +135,23 @@ namespace DynamicIsland.Media
             }
             double rms = Math.Sqrt(sumSq / n);
 
-            // If audio is practically silent (< -60 dB), skip processing
             if (rms < 0.001)
             {
                 for (int b = 0; b < 4; b++)
                 {
-                    peakEnergies[b] -= peakEnergies[b] * 0.15;
+                    peakEnergies[b] -= peakEnergies[b] * 0.10;
                     BandEnergies[b] = Math.Clamp(peakEnergies[b], 0.0, 1.0);
                 }
                 OnSpectrumUpdated?.Invoke(BandEnergies);
                 return;
             }
 
-            // Key representative frequencies for the 4 bars
             float[][] bandFrequencies = new float[][]
             {
-                new float[] { 55f, 80f, 120f, 160f },         // Bar 0: Bass & Kick Drops
-                new float[] { 240f, 360f, 520f, 720f },       // Bar 1: Vocals & Snares
-                new float[] { 950f, 1500f, 2200f, 3000f },    // Bar 2: Melodies & Guitars
-                new float[] { 4500f, 7000f, 9500f, 12500f }   // Bar 3: Hi-hats & Cymbals
+                new float[] { 55f, 85f, 130f },        // Bar 0: Bass & Kick Drops
+                new float[] { 260f, 420f, 650f },      // Bar 1: Vocals & Snares
+                new float[] { 1100f, 1800f, 2600f },   // Bar 2: Melodies & Guitars
+                new float[] { 5000f, 8000f, 11500f }   // Bar 3: Hi-hats & Crisp Treble
             };
 
             for (int b = 0; b < 4; b++)
@@ -167,38 +163,38 @@ namespace DynamicIsland.Media
                 }
                 double avgMag = sumMag / bandFrequencies[b].Length;
 
-                // Track running peak for dynamic automatic gain control (AGC)
+                // Automatic Gain Control with smooth dynamic ceiling
                 if (avgMag > maxObservedEnergy)
                 {
-                    maxObservedEnergy = avgMag;
+                    maxObservedEnergy = (maxObservedEnergy * 0.92) + (avgMag * 0.08);
                 }
                 else
                 {
-                    maxObservedEnergy = Math.Max(0.015, maxObservedEnergy * 0.998); // Slow decay of max peak
+                    maxObservedEnergy = Math.Max(0.015, maxObservedEnergy * 0.999);
                 }
 
-                // Normalize magnitude against running max to get rich 0.1 to 1.0 range
                 double normalized = Math.Clamp(avgMag / maxObservedEnergy, 0.0, 1.0);
 
-                // Give higher weighting to bass and snare beats
                 double boostFactor = b switch
                 {
-                    0 => 1.45,
-                    1 => 1.25,
-                    2 => 1.15,
+                    0 => 1.35,
+                    1 => 1.20,
+                    2 => 1.10,
                     _ => 1.00
                 };
 
-                double energy = Math.Clamp(Math.Pow(normalized, 0.60) * boostFactor, 0.0, 1.0);
+                double rawEnergy = Math.Clamp(Math.Pow(normalized, 0.65) * boostFactor, 0.0, 1.0);
 
-                // Snappy instant attack on beat drop + smooth organic release
-                if (energy > peakEnergies[b])
+                // Temporal low-pass filter: eliminate raw audio micro-jitter/vibration
+                if (rawEnergy > peakEnergies[b])
                 {
-                    peakEnergies[b] = energy; // Instant attack
+                    // Snappy rise on beat attack
+                    peakEnergies[b] = (peakEnergies[b] * 0.35) + (rawEnergy * 0.65);
                 }
                 else
                 {
-                    peakEnergies[b] -= (peakEnergies[b] - energy) * 0.24; // Smooth release
+                    // Gentle exponential release
+                    peakEnergies[b] = (peakEnergies[b] * 0.88) + (rawEnergy * 0.12);
                 }
 
                 BandEnergies[b] = Math.Clamp(peakEnergies[b], 0.0, 1.0);
@@ -219,7 +215,6 @@ namespace DynamicIsland.Media
 
             for (int i = 0; i < numSamples; i++)
             {
-                // Hann window to eliminate spectral leakage
                 double window = 0.5 * (1.0 - Math.Cos((2.0 * Math.PI * i) / (numSamples - 1)));
                 double sample = samples[i] * window;
 

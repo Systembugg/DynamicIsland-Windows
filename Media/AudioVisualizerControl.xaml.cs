@@ -13,7 +13,7 @@ namespace DynamicIsland.Media
         private readonly Border[] bars;
         private readonly double[] currentHeights;
         private readonly double[] targetHeights;
-        private readonly Random rng = new Random();
+        private readonly double[] velocities;
         private double phase = 0;
 
         public void SetAccentFromImage(BitmapSource? thumbnail, MediaAppSource appSource)
@@ -139,23 +139,24 @@ namespace DynamicIsland.Media
             bars = new Border[] { Bar0, Bar1, Bar2, Bar3, Bar4, Bar5 };
             currentHeights = new double[6];
             targetHeights = new double[6];
+            velocities = new double[6];
 
             for (int i = 0; i < 6; i++)
             {
                 currentHeights[i] = 3.0;
                 targetHeights[i] = 3.0;
+                velocities[i] = 0.0;
             }
 
-            animTimer.Interval = TimeSpan.FromMilliseconds(25); // 40 FPS high-refresh physics loop
+            animTimer.Interval = TimeSpan.FromMilliseconds(16); // 60 FPS ultra-smooth physics rendering loop
             animTimer.Tick += AnimTimer_Tick;
 
-            // Connect real audio spectrum capture event
             AudioSpectrumCaptureManager.Instance.OnSpectrumUpdated += (bands) =>
             {
                 for (int i = 0; i < barCount && i < bands.Length; i++)
                 {
-                    // Scale from resting height (3px) up to 15px max height based on live audio beats
-                    targetHeights[i] = 3.0 + (bands[i] * 12.0);
+                    // Scale cleanly from resting height (3.0px) to peak (14.5px)
+                    targetHeights[i] = 3.0 + (bands[i] * 11.5);
                 }
             };
 
@@ -178,35 +179,33 @@ namespace DynamicIsland.Media
 
             if (isPlaying && !hasLiveSound)
             {
-                // Fallback to organic subtle wave when sound output is completely silent
+                // Smooth harmonic sine idle motion when audio is silent
                 for (int i = 0; i < barCount; i++)
                 {
-                    double s1 = Math.Sin(phase * 1.1 + (i * 1.3));
-                    double s2 = Math.Cos(phase * 0.7 - (i * 0.9));
-                    double r = rng.NextDouble();
-                    
-                    double mag = Math.Abs(s1 * 0.4 + s2 * 0.3 + r * 0.3);
-                    mag = Math.Clamp(mag, 0.15, 0.85);
-
-                    targetHeights[i] = 3.0 + mag * 8.0; // Subtle motion during silence
+                    double s1 = Math.Sin(phase * 0.9 + (i * 1.2));
+                    double s2 = Math.Cos(phase * 0.6 - (i * 0.8));
+                    double mag = Math.Abs(s1 * 0.5 + s2 * 0.4);
+                    targetHeights[i] = 3.0 + Math.Clamp(mag, 0.1, 0.85) * 7.5;
                 }
             }
 
-            // Smooth spring damping interpolation
+            // Apple Critically Damped Spring Physics (stiffness 0.22, damping 0.74)
+            double stiffness = 0.22;
+            double damping = 0.74;
             bool stillMoving = false;
+
             for (int i = 0; i < barCount; i++)
             {
-                double diff = targetHeights[i] - currentHeights[i];
-                if (Math.Abs(diff) > 0.1)
+                double displacement = targetHeights[i] - currentHeights[i];
+                velocities[i] = (velocities[i] * damping) + (displacement * stiffness);
+                currentHeights[i] += velocities[i];
+
+                currentHeights[i] = Math.Clamp(currentHeights[i], 3.0, 15.0);
+                bars[i].Height = currentHeights[i];
+
+                if (Math.Abs(displacement) > 0.05 || Math.Abs(velocities[i]) > 0.05)
                 {
-                    currentHeights[i] += diff * 0.55; // Fast spring responsiveness
-                    bars[i].Height = currentHeights[i];
                     stillMoving = true;
-                }
-                else
-                {
-                    currentHeights[i] = targetHeights[i];
-                    bars[i].Height = currentHeights[i];
                 }
             }
 
