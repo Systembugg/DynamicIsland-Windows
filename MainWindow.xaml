@@ -831,70 +831,147 @@
 
                     <!-- G. UNIFIED NOTES, CLIPBOARD & SNIPPETS VIEW (Matching media_1788009864963.png 1:1) -->
                     <Grid x:Name="ViewClipboardBody" Visibility="Collapsed">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+                        <!-- 1. List Mode View (Search, Tabs & Scrollable History) -->
+                        <Grid x:Name="ViewClipboardListContent" Visibility="Visible">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
 
-                        <!-- Row 0: Top Segmented Pill Switcher Header (media_1788009864963.png) -->
-                        <Grid Grid.Row="0" Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Left: New Note / Add Snippet Button -->
-                            <Border x:Name="BtnNewNoteOrSnippet" Grid.Column="0" Width="30" Height="30" CornerRadius="15" Background="#1C1C1E" Cursor="Hand" ToolTip="New Note / Snippet" MouseLeftButtonDown="BtnNewNoteOrSnippet_MouseLeftButtonDown">
-                                <Path Data="{StaticResource IconCompose}" Fill="#8E8E93" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-
-                            <!-- Center: 4-Way Segmented Capsule Pill [ Notes | Clipboard | Screenshots | Snippets ] -->
-                            <Border Grid.Column="1" HorizontalAlignment="Center" Height="32" CornerRadius="16" Background="#141416" Padding="3">
-                                <StackPanel Orientation="Horizontal">
-                                    <!-- Segment 1: Notes -->
-                                    <Border x:Name="BtnSubTabNotes" CornerRadius="13" Background="#2C2C2E" Padding="10,0" Cursor="Hand" MouseLeftButtonDown="BtnSubTabNotes_MouseLeftButtonDown">
-                                        <TextBlock x:Name="TxtSubTabNotes" Text="Notes" Foreground="#FFFFFF" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <!-- Segment 2: Clipboard -->
-                                    <Border x:Name="BtnSubTabClipboard" CornerRadius="13" Background="Transparent" Padding="10,0" Cursor="Hand" MouseLeftButtonDown="BtnSubTabClipboard_MouseLeftButtonDown">
-                                        <TextBlock x:Name="TxtSubTabClipboard" Text="Clipboard" Foreground="#8E8E93" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <!-- Segment 3: Screenshots -->
-                                    <Border x:Name="BtnSubTabScreenshots" CornerRadius="13" Background="Transparent" Padding="10,0" Cursor="Hand" MouseLeftButtonDown="BtnSubTabScreenshots_MouseLeftButtonDown">
-                                        <TextBlock x:Name="TxtSubTabScreenshots" Text="Screenshots" Foreground="#8E8E93" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <!-- Segment 4: Snippets -->
-                                    <Border x:Name="BtnSubTabSnippets" CornerRadius="13" Background="Transparent" Padding="10,0" Cursor="Hand" MouseLeftButtonDown="BtnSubTabSnippets_MouseLeftButtonDown">
-                                        <TextBlock x:Name="TxtSubTabSnippets" Text="Snippets" Foreground="#8E8E93" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Right: Clear / Settings Button -->
-                            <Border x:Name="BtnClearClipboardHistory" Grid.Column="2" Width="30" Height="30" CornerRadius="15" Background="#1C1C1E" Cursor="Hand" ToolTip="Clear Unpinned History" MouseLeftButtonDown="BtnClearClipboardHistory_MouseLeftButtonDown">
-                                <Path Data="{StaticResource IconTrash}" Fill="#8E8E93" Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                        </Grid>
-
-                        <!-- Row 1: Search Bar (media_1788009864963.png) -->
-                        <Border Grid.Row="1" Height="34" CornerRadius="10" Background="#141416" Padding="10,0" Margin="0,0,0,8">
-                            <Grid VerticalAlignment="Center">
+                            <!-- Row 0: Top Segmented Pill Switcher Header (media_1788009864963.png) -->
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <Path Grid.Column="0" Data="{StaticResource IconSearch}" Fill="#8E8E93" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBox x:Name="TxtClipboardSearch" Grid.Column="1" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#37A3DE" FontSize="13" VerticalAlignment="Center" TextChanged="TxtClipboardSearch_TextChanged">
+
+                                <!-- Left: New Note / Add Snippet Button -->
+                                <Border x:Name="BtnNewNoteOrSnippet" Grid.Column="0" Width="30" Height="30" CornerRadius="15" Background="#1C1C1E" Cursor="Hand" ToolTip="New Note / Snippet" MouseLeftButtonDown="BtnNewNoteOrSnippet_MouseLeftButtonDown">
+                                    <Path Data="{StaticResource IconCompose}" Fill="#8E8E93" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+
+                                <!-- Center: 4-Way Segmented Capsule Pill [ Notes | Clipboard | Screenshots | Snippets ] -->
+                                <Border Grid.Column="1" HorizontalAlignment="Center" Height="32" CornerRadius="16" Background="#141416" Padding="3">
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- Segment 1: Notes -->
+                                        <Border x:Name="BtnSubTabNotes" CornerRadius="13" Background="#2C2C2E" Padding="10,0" Cursor="Hand" MouseLeftButtonDown="BtnSubTabNotes_MouseLeftButtonDown">
+                                            <TextBlock x:Name="TxtSubTabNotes" Text="Notes" Foreground="#FFFFFF" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <!-- Segment 2: Clipboard -->
+                                        <Border x:Name="BtnSubTabClipboard" CornerRadius="13" Background="Transparent" Padding="10,0" Cursor="Hand" MouseLeftButtonDown="BtnSubTabClipboard_MouseLeftButtonDown">
+                                            <TextBlock x:Name="TxtSubTabClipboard" Text="Clipboard" Foreground="#8E8E93" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <!-- Segment 3: Screenshots -->
+                                        <Border x:Name="BtnSubTabScreenshots" CornerRadius="13" Background="Transparent" Padding="10,0" Cursor="Hand" MouseLeftButtonDown="BtnSubTabScreenshots_MouseLeftButtonDown">
+                                            <TextBlock x:Name="TxtSubTabScreenshots" Text="Screenshots" Foreground="#8E8E93" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <!-- Segment 4: Snippets -->
+                                        <Border x:Name="BtnSubTabSnippets" CornerRadius="13" Background="Transparent" Padding="10,0" Cursor="Hand" MouseLeftButtonDown="BtnSubTabSnippets_MouseLeftButtonDown">
+                                            <TextBlock x:Name="TxtSubTabSnippets" Text="Snippets" Foreground="#8E8E93" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Right: Clear / Settings Button -->
+                                <Border x:Name="BtnClearClipboardHistory" Grid.Column="2" Width="30" Height="30" CornerRadius="15" Background="#1C1C1E" Cursor="Hand" ToolTip="Clear Unpinned History" MouseLeftButtonDown="BtnClearClipboardHistory_MouseLeftButtonDown">
+                                    <Path Data="{StaticResource IconTrash}" Fill="#8E8E93" Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- Row 1: Search Bar (media_1788009864963.png) -->
+                            <Border Grid.Row="1" Height="34" CornerRadius="10" Background="#141416" Padding="10,0" Margin="0,0,0,8">
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Path Grid.Column="0" Data="{StaticResource IconSearch}" Fill="#8E8E93" Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBox x:Name="TxtClipboardSearch" Grid.Column="1" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#37A3DE" FontSize="13" VerticalAlignment="Center" TextChanged="TxtClipboardSearch_TextChanged">
+                                        <TextBox.Style>
+                                            <Style TargetType="TextBox">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="TextBox">
+                                                            <Grid>
+                                                                <TextBlock x:Name="Placeholder" Text="Search..." Foreground="#5E5E62" FontSize="13" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"/>
+                                                                <ScrollViewer x:Name="PART_ContentHost"/>
+                                                            </Grid>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="Text" Value="">
+                                                                    <Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </TextBox.Style>
+                                    </TextBox>
+                                    <Border x:Name="BtnClearSearch" Grid.Column="2" Width="18" Height="18" CornerRadius="9" Background="#2C2C2E" Cursor="Hand" Visibility="Collapsed" MouseLeftButtonDown="BtnClearSearch_MouseLeftButtonDown">
+                                        <Path Data="{StaticResource IconXMark}" Fill="#8E8E93" Width="8" Height="8" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- Row 2: Smooth Scrollable List -->
+                            <ScrollViewer x:Name="ClipboardListScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" Focusable="False" Height="195" Margin="0,0,0,2" PreviewMouseWheel="ClipboardScrollViewer_PreviewMouseWheel">
+                                <Grid VerticalAlignment="Top">
+                                    <!-- Empty State Prompt -->
+                                    <StackPanel x:Name="ClipboardEmptyPrompt" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,30,0,10" Visibility="Collapsed">
+                                        <Path Data="{StaticResource IconClipboard}" Fill="#48484A" Width="36" Height="36" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                        <TextBlock x:Name="TxtClipboardEmptyTitle" Text="Clipboard history is empty" Foreground="#8E8E93" FontSize="13.5" FontWeight="Medium" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtClipboardEmptySubtitle" Text="1-9 to paste • Ctrl+C to copy • Click to reuse" Foreground="#555558" FontSize="11" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                                    </StackPanel>
+
+                                    <!-- Items List -->
+                                    <StackPanel x:Name="ClipboardItemsStackPanel" VerticalAlignment="Top" Margin="0,0,0,22"/>
+                                </Grid>
+                            </ScrollViewer>
+                        </Grid>
+
+                        <!-- 2. Apple Rich Note / Snippet Composer & Editor View -->
+                        <Grid x:Name="ViewNoteEditor" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Row 0: Note Editor Header -->
+                            <Grid Grid.Row="0" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left: Cancel / Back Button -->
+                                <Border x:Name="BtnCancelNoteEdit" Grid.Column="0" Height="28" Padding="10,0" CornerRadius="14" Background="#1C1C1E" Cursor="Hand" ToolTip="Cancel (Esc)" MouseLeftButtonDown="BtnCancelNoteEdit_MouseLeftButtonDown">
+                                    <TextBlock Text="Cancel" Foreground="#8E8E93" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
+                                </Border>
+
+                                <!-- Center: Mode Title -->
+                                <TextBlock x:Name="TxtNoteEditorHeader" Grid.Column="1" Text="New Note" Foreground="#FFFFFF" FontSize="13.5" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                <!-- Right: Save Button -->
+                                <Border x:Name="BtnSaveNoteEdit" Grid.Column="2" Height="28" Padding="14,0" CornerRadius="14" Background="#0A84FF" Cursor="Hand" ToolTip="Save Note (Ctrl+Enter)" MouseLeftButtonDown="BtnSaveNoteEdit_MouseLeftButtonDown">
+                                    <TextBlock Text="Save" Foreground="#FFFFFF" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- Row 1: Title Input -->
+                            <Border Grid.Row="1" Height="34" CornerRadius="10" Background="#141416" Padding="10,0" Margin="0,0,0,8">
+                                <TextBox x:Name="TxtNoteEditTitle" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#37A3DE" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" KeyDown="TxtNoteEdit_KeyDown">
                                     <TextBox.Style>
                                         <Style TargetType="TextBox">
                                             <Setter Property="Template">
                                                 <Setter.Value>
                                                     <ControlTemplate TargetType="TextBox">
                                                         <Grid>
-                                                            <TextBlock x:Name="Placeholder" Text="Search..." Foreground="#5E5E62" FontSize="13" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"/>
+                                                            <TextBlock x:Name="Placeholder" Text="Title..." Foreground="#5E5E62" FontSize="13" FontWeight="Normal" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"/>
                                                             <ScrollViewer x:Name="PART_ContentHost"/>
                                                         </Grid>
                                                         <ControlTemplate.Triggers>
@@ -908,26 +985,33 @@
                                         </Style>
                                     </TextBox.Style>
                                 </TextBox>
-                                <Border x:Name="BtnClearSearch" Grid.Column="2" Width="18" Height="18" CornerRadius="9" Background="#2C2C2E" Cursor="Hand" Visibility="Collapsed" MouseLeftButtonDown="BtnClearSearch_MouseLeftButtonDown">
-                                    <Path Data="{StaticResource IconXMark}" Fill="#8E8E93" Width="8" Height="8" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                            </Grid>
-                        </Border>
+                            </Border>
 
-                        <!-- Row 2: Smooth Scrollable List (Invisible / Hidden scrollbar as requested!) -->
-                        <ScrollViewer x:Name="ClipboardListScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" Focusable="False" Height="195" Margin="0,0,0,2" PreviewMouseWheel="ClipboardScrollViewer_PreviewMouseWheel">
-                            <Grid VerticalAlignment="Top">
-                                <!-- Empty State Prompt (media_1788009844664.png) -->
-                                <StackPanel x:Name="ClipboardEmptyPrompt" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,30,0,10" Visibility="Collapsed">
-                                    <Path Data="{StaticResource IconClipboard}" Fill="#48484A" Width="36" Height="36" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                    <TextBlock x:Name="TxtClipboardEmptyTitle" Text="Clipboard history is empty" Foreground="#8E8E93" FontSize="13.5" FontWeight="Medium" HorizontalAlignment="Center"/>
-                                    <TextBlock x:Name="TxtClipboardEmptySubtitle" Text="1-9 to paste • Ctrl+C to copy • Click to reuse" Foreground="#555558" FontSize="11" HorizontalAlignment="Center" Margin="0,3,0,0"/>
-                                </StackPanel>
-
-                                <!-- Items List with top alignment so items always start neatly below search bar -->
-                                <StackPanel x:Name="ClipboardItemsStackPanel" VerticalAlignment="Top" Margin="0,0,0,22"/>
-                            </Grid>
-                        </ScrollViewer>
+                            <!-- Row 2: Content Multi-line Input -->
+                            <Border Grid.Row="2" Height="195" CornerRadius="12" Background="#141416" Padding="10,8" Margin="0,0,0,2">
+                                <TextBox x:Name="TxtNoteEditContent" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" CaretBrush="#37A3DE" FontSize="12.5" VerticalAlignment="Stretch" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Hidden" KeyDown="TxtNoteEdit_KeyDown">
+                                    <TextBox.Style>
+                                        <Style TargetType="TextBox">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="TextBox">
+                                                        <Grid>
+                                                            <TextBlock x:Name="Placeholder" Text="Type note content here... (Ctrl+Enter to save)" Foreground="#5E5E62" FontSize="12.5" VerticalAlignment="Top" Margin="2,2,0,0" IsHitTestVisible="False" Visibility="Collapsed"/>
+                                                            <ScrollViewer x:Name="PART_ContentHost"/>
+                                                        </Grid>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="Text" Value="">
+                                                                <Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </TextBox.Style>
+                                </TextBox>
+                            </Border>
+                        </Grid>
                     </Grid>
 
                 </Grid>

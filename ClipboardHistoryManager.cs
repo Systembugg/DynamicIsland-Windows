@@ -222,6 +222,15 @@ namespace DynamicIsland
             OnDataChanged?.Invoke();
         }
 
+        public void UpdateItem(HistoryItemModel item, string title, string content)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(content)) return;
+            item.Title = string.IsNullOrWhiteSpace(title) ? (content.Split('\n').FirstOrDefault() ?? "Note") : title;
+            item.Content = content;
+            SaveToDisk();
+            OnDataChanged?.Invoke();
+        }
+
         public void TogglePin(HistoryItemModel item)
         {
             item.IsPinned = !item.IsPinned;

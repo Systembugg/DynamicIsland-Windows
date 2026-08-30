@@ -1021,6 +1021,7 @@ namespace DynamicIsland
         private void BtnSubTabNotes_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             e.Handled = true;
+            CloseNoteEditor();
             currentClipboardSubTab = ClipboardSubTab.Notes;
             UpdateSubTabPills();
             RenderClipboardHistoryList();
@@ -1029,6 +1030,7 @@ namespace DynamicIsland
         private void BtnSubTabClipboard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             e.Handled = true;
+            CloseNoteEditor();
             currentClipboardSubTab = ClipboardSubTab.Clipboard;
             UpdateSubTabPills();
             RenderClipboardHistoryList();
@@ -1037,6 +1039,7 @@ namespace DynamicIsland
         private void BtnSubTabScreenshots_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             e.Handled = true;
+            CloseNoteEditor();
             currentClipboardSubTab = ClipboardSubTab.Screenshots;
             UpdateSubTabPills();
             RenderClipboardHistoryList();
@@ -1045,6 +1048,7 @@ namespace DynamicIsland
         private void BtnSubTabSnippets_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             e.Handled = true;
+            CloseNoteEditor();
             currentClipboardSubTab = ClipboardSubTab.Snippets;
             UpdateSubTabPills();
             RenderClipboardHistoryList();
@@ -1074,26 +1078,113 @@ namespace DynamicIsland
             TxtSubTabSnippets.FontWeight = currentClipboardSubTab == ClipboardSubTab.Snippets ? FontWeights.SemiBold : FontWeights.Medium;
         }
 
-        private void BtnNewNoteOrSnippet_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            e.Handled = true;
-            string clipText = "";
-            try { if (Clipboard.ContainsText()) clipText = Clipboard.GetText(); } catch { }
+        private HistoryItemModel? _currentEditingNoteItem = null;
 
-            if (currentClipboardSubTab == ClipboardSubTab.Notes)
+        private void OpenNoteEditor(HistoryItemModel? item = null)
+        {
+            _currentEditingNoteItem = item;
+            if (item != null)
             {
-                string noteContent = string.IsNullOrWhiteSpace(clipText) ? "New Note " + DateTime.Now.ToString("g") : clipText;
-                ClipboardHistoryManager.Instance.AddNote(noteContent.Split('\n').FirstOrDefault() ?? "New Note", noteContent);
-            }
-            else if (currentClipboardSubTab == ClipboardSubTab.Snippets)
-            {
-                string snippetContent = string.IsNullOrWhiteSpace(clipText) ? "New Snippet " + DateTime.Now.ToString("t") : clipText;
-                ClipboardHistoryManager.Instance.AddSnippet(snippetContent.Split('\n').FirstOrDefault() ?? "Snippet", snippetContent);
+                TxtNoteEditorHeader.Text = item.Type == HistoryItemType.Snippet ? "Edit Snippet" : "Edit Note";
+                TxtNoteEditTitle.Text = item.Title;
+                TxtNoteEditContent.Text = item.Content;
             }
             else
             {
-                ClipboardHistoryManager.Instance.HandleClipboardUpdate();
+                string clipText = "";
+                try { if (Clipboard.ContainsText()) clipText = Clipboard.GetText(); } catch { }
+
+                TxtNoteEditorHeader.Text = currentClipboardSubTab == ClipboardSubTab.Snippets ? "New Snippet" : "New Note";
+                TxtNoteEditTitle.Text = "";
+                TxtNoteEditContent.Text = clipText;
             }
+
+            ViewClipboardListContent.Visibility = Visibility.Collapsed;
+            ViewNoteEditor.Visibility = Visibility.Visible;
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (string.IsNullOrEmpty(TxtNoteEditTitle.Text))
+                {
+                    TxtNoteEditTitle.Focus();
+                    TxtNoteEditTitle.SelectAll();
+                }
+                else
+                {
+                    TxtNoteEditContent.Focus();
+                    TxtNoteEditContent.CaretIndex = TxtNoteEditContent.Text.Length;
+                }
+            }), System.Windows.Threading.DispatcherPriority.Input);
+        }
+
+        private void CloseNoteEditor()
+        {
+            _currentEditingNoteItem = null;
+            ViewNoteEditor.Visibility = Visibility.Collapsed;
+            ViewClipboardListContent.Visibility = Visibility.Visible;
+            RenderClipboardHistoryList();
+        }
+
+        private void SaveNoteEditor()
+        {
+            string title = TxtNoteEditTitle.Text.Trim();
+            string content = TxtNoteEditContent.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                CloseNoteEditor();
+                return;
+            }
+
+            if (_currentEditingNoteItem != null)
+            {
+                ClipboardHistoryManager.Instance.UpdateItem(_currentEditingNoteItem, title, content);
+            }
+            else
+            {
+                if (currentClipboardSubTab == ClipboardSubTab.Snippets)
+                {
+                    ClipboardHistoryManager.Instance.AddSnippet(title, content);
+                }
+                else
+                {
+                    ClipboardHistoryManager.Instance.AddNote(title, content);
+                }
+            }
+
+            CloseNoteEditor();
+        }
+
+        private void BtnSaveNoteEdit_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            SaveNoteEditor();
+        }
+
+        private void BtnCancelNoteEdit_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            CloseNoteEditor();
+        }
+
+        private void TxtNoteEdit_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                SaveNoteEditor();
+            }
+            else if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                CloseNoteEditor();
+            }
+        }
+
+        private void BtnNewNoteOrSnippet_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            OpenNoteEditor(null);
         }
 
         private void BtnClearClipboardHistory_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -1337,6 +1428,38 @@ namespace DynamicIsland
                 };
                 rightStack.Children.Add(btnPin);
 
+                // Edit button (for Notes and Snippets)
+                if (item.Type == HistoryItemType.Note || item.Type == HistoryItemType.Snippet || currentClipboardSubTab == ClipboardSubTab.Notes || currentClipboardSubTab == ClipboardSubTab.Snippets)
+                {
+                    var btnEdit = new Border
+                    {
+                        Width = 22,
+                        Height = 22,
+                        CornerRadius = new CornerRadius(11),
+                        Background = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)),
+                        Cursor = Cursors.Hand,
+                        Margin = new Thickness(0, 0, 4, 0),
+                        ToolTip = "Edit Note / Snippet"
+                    };
+                    var editPath = new System.Windows.Shapes.Path
+                    {
+                        Data = (Geometry)FindResource("IconCompose"),
+                        Fill = new SolidColorBrush(Color.FromRgb(0x8E, 0x8E, 0x93)),
+                        Width = 9,
+                        Height = 9,
+                        Stretch = Stretch.Uniform,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    btnEdit.Child = editPath;
+                    btnEdit.MouseLeftButtonDown += (s, ev) =>
+                    {
+                        ev.Handled = true;
+                        OpenNoteEditor(item);
+                    };
+                    rightStack.Children.Add(btnEdit);
+                }
+
                 // Delete button
                 var btnDel = new Border
                 {
@@ -1382,6 +1505,13 @@ namespace DynamicIsland
                 card.MouseLeftButtonDown += (s, ev) =>
                 {
                     ev.Handled = true;
+
+                    if (ev.ClickCount >= 2 && (item.Type == HistoryItemType.Note || item.Type == HistoryItemType.Snippet || currentClipboardSubTab == ClipboardSubTab.Notes || currentClipboardSubTab == ClipboardSubTab.Snippets))
+                    {
+                        OpenNoteEditor(item);
+                        return;
+                    }
+
                     ClipboardHistoryManager.Instance.CopyToClipboard(item);
                     titleBlock.Text = item.Type == HistoryItemType.Image ? "✓ Image copied!" : "✓ Copied to clipboard!";
                     titleBlock.Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0xE4, 0x6C));
