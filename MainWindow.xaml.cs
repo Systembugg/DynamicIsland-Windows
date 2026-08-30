@@ -293,8 +293,9 @@ namespace DynamicIsland
             volumePollTimer.Interval = TimeSpan.FromMilliseconds(45);
             volumePollTimer.Tick += VolumePollTimer_Tick;
 
-            // Brightness Poller (2500ms)
-            brightnessPollTimer.Interval = TimeSpan.FromMilliseconds(2500);
+            // Real-Time Hardware Brightness Watcher & Poller (350ms)
+            InitBrightnessWatcher();
+            brightnessPollTimer.Interval = TimeSpan.FromMilliseconds(350);
             brightnessPollTimer.Tick += BrightnessPollTimer_Tick;
             brightnessPollTimer.Start();
 
@@ -4384,22 +4385,45 @@ namespace DynamicIsland
 
         #region Windows 11 Pure Display Brightness Listener & Engine
 
-        private bool isBrightnessWmiSupported = true;
+        private ManagementEventWatcher? _brightnessEventWatcher;
+
+        private void InitBrightnessWatcher()
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    var scope = new ManagementScope(@"root\wmi");
+                    scope.Connect();
+                    var query = new EventQuery("SELECT * FROM WmiMonitorBrightnessEvent");
+                    _brightnessEventWatcher = new ManagementEventWatcher(scope, query);
+                    _brightnessEventWatcher.EventArrived += (s, e) =>
+                    {
+                        try
+                        {
+                            int b = Convert.ToInt32(e.NewEvent["Brightness"]);
+                            if (b != lastKnownBrightness && b >= 0)
+                            {
+                                lastKnownBrightness = b;
+                                Dispatcher.Invoke(() => TriggerBrightnessHUD(b));
+                            }
+                        }
+                        catch { }
+                    };
+                    _brightnessEventWatcher.Start();
+                }
+                catch { }
+            });
+        }
 
         private void BrightnessPollTimer_Tick(object? sender, EventArgs e)
         {
-            if (!isBrightnessWmiSupported) return;
             Task.Run(() =>
             {
                 try
                 {
                     int currentBrightness = GetWindowsBrightness();
-                    if (currentBrightness < 0)
-                    {
-                        isBrightnessWmiSupported = false;
-                        Dispatcher.Invoke(() => brightnessPollTimer.Stop());
-                        return;
-                    }
+                    if (currentBrightness < 0) return;
 
                     if (!isInitialBrightnessLoaded)
                     {
@@ -4415,7 +4439,7 @@ namespace DynamicIsland
                         Dispatcher.Invoke(() => TriggerBrightnessHUD(currentBrightness));
                     }
                 }
-                catch { isBrightnessWmiSupported = false; }
+                catch { }
             });
         }
 
@@ -4430,6 +4454,17 @@ namespace DynamicIsland
                 }
             }
             catch { }
+
+            // Fallback for external monitors via DDC/CI
+            try
+            {
+                if (TryGetDdcCiBrightness(out int ddcB))
+                {
+                    return ddcB;
+                }
+            }
+            catch { }
+
             return -1;
         }
 
@@ -4521,6 +4556,7 @@ namespace DynamicIsland
 
         public static void SetWindowsBrightness(int brightnessPercent)
         {
+            int target = Math.Clamp(brightnessPercent, 0, 100);
             Task.Run(() =>
             {
                 try
@@ -4528,8 +4564,14 @@ namespace DynamicIsland
                     using var searcher = new ManagementObjectSearcher(@"root\wmi", "SELECT * FROM WmiMonitorBrightnessMethods");
                     foreach (ManagementObject obj in searcher.Get())
                     {
-                        obj.InvokeMethod("WmiSetBrightness", new object[] { 1, (byte)brightnessPercent });
+                        obj.InvokeMethod("WmiSetBrightness", new object[] { (uint)1, (byte)target });
                     }
+                }
+                catch { }
+
+                try
+                {
+                    SetDdcCiBrightness((uint)target);
                 }
                 catch { }
             });
@@ -4574,6 +4616,95 @@ namespace DynamicIsland
             SetWindowsBrightness(pct);
             TriggerBrightnessHUD(pct);
         }
+
+        #region DDC/CI External Monitor Brightness Helper
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        public struct PHYSICAL_MONITOR
+        {
+            public IntPtr hPhysicalMonitor;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+            public string szPhysicalMonitorDescription;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+        [DllImport("dxva2.dll", SetLastError = true)]
+        private static extern bool GetNumberOfPhysicalMonitorsFromHMONITOR(IntPtr hMonitor, out uint pdwNumberOfPhysicalMonitors);
+
+        [DllImport("dxva2.dll", SetLastError = true)]
+        private static extern bool GetPhysicalMonitorsFromHMONITOR(IntPtr hMonitor, uint dwPhysicalMonitorArraySize, [Out] PHYSICAL_MONITOR[] pPhysicalMonitorArray);
+
+        [DllImport("dxva2.dll", SetLastError = true)]
+        private static extern bool GetMonitorBrightness(IntPtr hMonitor, out uint pdwMinimumBrightness, out uint pdwCurrentBrightness, out uint pdwMaximumBrightness);
+
+        [DllImport("dxva2.dll", SetLastError = true)]
+        private static extern bool SetMonitorBrightness(IntPtr hMonitor, uint dwNewBrightness);
+
+        [DllImport("dxva2.dll", SetLastError = true)]
+        private static extern bool DestroyPhysicalMonitors(uint dwPhysicalMonitorArraySize, [In] PHYSICAL_MONITOR[] pPhysicalMonitorArray);
+
+        private static bool TryGetDdcCiBrightness(out int brightness)
+        {
+            brightness = -1;
+            try
+            {
+                IntPtr primaryMon = MonitorFromWindow(IntPtr.Zero, 1);
+                if (primaryMon == IntPtr.Zero) return false;
+
+                if (GetNumberOfPhysicalMonitorsFromHMONITOR(primaryMon, out uint count) && count > 0)
+                {
+                    var physMons = new PHYSICAL_MONITOR[count];
+                    if (GetPhysicalMonitorsFromHMONITOR(primaryMon, count, physMons))
+                    {
+                        try
+                        {
+                            if (GetMonitorBrightness(physMons[0].hPhysicalMonitor, out uint min, out uint cur, out uint max))
+                            {
+                                brightness = (int)cur;
+                                return true;
+                            }
+                        }
+                        finally
+                        {
+                            DestroyPhysicalMonitors(count, physMons);
+                        }
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static void SetDdcCiBrightness(uint brightness)
+        {
+            try
+            {
+                IntPtr primaryMon = MonitorFromWindow(IntPtr.Zero, 1);
+                if (primaryMon == IntPtr.Zero) return;
+
+                if (GetNumberOfPhysicalMonitorsFromHMONITOR(primaryMon, out uint count) && count > 0)
+                {
+                    var physMons = new PHYSICAL_MONITOR[count];
+                    if (GetPhysicalMonitorsFromHMONITOR(primaryMon, count, physMons))
+                    {
+                        try
+                        {
+                            foreach (var m in physMons)
+                            {
+                                SetMonitorBrightness(m.hPhysicalMonitor, brightness);
+                            }
+                        }
+                        finally
+                        {
+                            DestroyPhysicalMonitors(count, physMons);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+        #endregion
 
         #endregion
 
