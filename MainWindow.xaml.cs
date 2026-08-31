@@ -1006,7 +1006,7 @@ namespace DynamicIsland
             bool isVisibleOnUi = (NetworkCompactContainer.Visibility == Visibility.Visible) ||
                                  (isExpanded && currentExpandedTab == ExpandedActivityTab.Network);
 
-            NetworkSpeedManager.Instance.SetHighFrequency(isVisibleOnUi);
+            NetworkSpeedManager.Instance.SetActive(isVisibleOnUi);
 
             if (!isVisibleOnUi) return; // Skip all UI property assignments and DWM GPU composition when not on screen!
 
@@ -5925,6 +5925,11 @@ namespace DynamicIsland
 
                 AnimateSize(baseW, baseH);
             }
+
+            // GPU/CPU Optimization: Network speed timer runs strictly when rendered on UI, otherwise completely stopped
+            bool isNetworkActive = (NetworkCompactContainer.Visibility == Visibility.Visible) ||
+                                   (isExpanded && currentExpandedTab == ExpandedActivityTab.Network);
+            NetworkSpeedManager.Instance.SetActive(isNetworkActive);
         }
 
         #endregion

@@ -30,23 +30,34 @@ namespace DynamicIsland.Network
         {
             try
             {
-                NetworkChange.NetworkAvailabilityChanged += (s, e) => MeasureSpeed();
-                NetworkChange.NetworkAddressChanged += (s, e) => MeasureSpeed();
+                NetworkChange.NetworkAvailabilityChanged += (s, e) => { if (timer.IsEnabled) MeasureSpeed(); };
+                NetworkChange.NetworkAddressChanged += (s, e) => { if (timer.IsEnabled) MeasureSpeed(); };
             }
             catch { }
 
-            timer.Interval = TimeSpan.FromMilliseconds(1000);
+            timer.Interval = TimeSpan.FromMilliseconds(1000); // 1.0s real-time when active
             timer.Tick += Timer_Tick;
-            timer.Start();
-            MeasureSpeed();
+            // Timer is NOT started here — it starts ONLY when Network UI is actively rendered
         }
 
-        public void SetHighFrequency(bool active)
+        public void SetActive(bool active)
         {
-            var target = TimeSpan.FromMilliseconds(active ? 1000 : 6000);
-            if (timer.Interval != target)
+            if (active)
             {
-                timer.Interval = target;
+                if (!timer.IsEnabled)
+                {
+                    isFirstTick = true;
+                    lastCheckTime = DateTime.UtcNow;
+                    MeasureSpeed();
+                    timer.Start();
+                }
+            }
+            else
+            {
+                if (timer.IsEnabled)
+                {
+                    timer.Stop();
+                }
             }
         }
 
