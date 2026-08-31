@@ -41,6 +41,15 @@ namespace DynamicIsland.Network
             MeasureSpeed();
         }
 
+        public void SetHighFrequency(bool active)
+        {
+            var target = TimeSpan.FromMilliseconds(active ? 1000 : 6000);
+            if (timer.Interval != target)
+            {
+                timer.Interval = target;
+            }
+        }
+
         private void Timer_Tick(object? sender, EventArgs e)
         {
             MeasureSpeed();

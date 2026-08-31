@@ -1003,6 +1003,13 @@ namespace DynamicIsland
 
         private void UpdateNetworkVisuals()
         {
+            bool isVisibleOnUi = (NetworkCompactContainer.Visibility == Visibility.Visible) ||
+                                 (isExpanded && currentExpandedTab == ExpandedActivityTab.Network);
+
+            NetworkSpeedManager.Instance.SetHighFrequency(isVisibleOnUi);
+
+            if (!isVisibleOnUi) return; // Skip all UI property assignments and DWM GPU composition when not on screen!
+
             bool connected = NetworkSpeedManager.Instance.IsConnected;
             var accentColor = connected ? Color.FromRgb(0x37, 0xC0, 0x58) : Color.FromRgb(0xFF, 0x3B, 0x30);
             var accentBrush = new SolidColorBrush(accentColor);
