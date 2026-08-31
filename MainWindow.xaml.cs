@@ -1006,8 +1006,6 @@ namespace DynamicIsland
             bool isVisibleOnUi = (NetworkCompactContainer.Visibility == Visibility.Visible) ||
                                  (isExpanded && currentExpandedTab == ExpandedActivityTab.Network);
 
-            NetworkSpeedManager.Instance.SetActive(isVisibleOnUi);
-
             if (!isVisibleOnUi) return; // Skip all UI property assignments and DWM GPU composition when not on screen!
 
             bool connected = NetworkSpeedManager.Instance.IsConnected;

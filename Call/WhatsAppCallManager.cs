@@ -161,7 +161,7 @@ namespace DynamicIsland.Call
             {
                 if (CurrentCall == null && !IsPreviewMode)
                 {
-                    Application.Current?.Dispatcher.Invoke(() =>
+                    Application.Current?.Dispatcher.InvokeAsync(() =>
                     {
                         if (_scanTimer.IsEnabled) _scanTimer.Stop();
                     });

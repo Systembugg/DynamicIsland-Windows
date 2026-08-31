@@ -15,6 +15,8 @@ namespace DynamicIsland.Network
         private long lastBytesSent = 0;
         private DateTime lastCheckTime = DateTime.UtcNow;
         private bool isFirstTick = true;
+        private bool _isActive = false;
+        private bool _isMeasuring = false;
 
         public double DownloadSpeedBytesPerSec { get; private set; }
         public double UploadSpeedBytesPerSec { get; private set; }
@@ -30,44 +32,42 @@ namespace DynamicIsland.Network
         {
             try
             {
-                NetworkChange.NetworkAvailabilityChanged += (s, e) => { if (timer.IsEnabled) MeasureSpeed(); };
-                NetworkChange.NetworkAddressChanged += (s, e) => { if (timer.IsEnabled) MeasureSpeed(); };
+                NetworkChange.NetworkAvailabilityChanged += (s, e) => { if (_isActive) MeasureSpeed(); };
+                NetworkChange.NetworkAddressChanged += (s, e) => { if (_isActive) MeasureSpeed(); };
             }
             catch { }
 
             timer.Interval = TimeSpan.FromMilliseconds(1000); // 1.0s real-time when active
             timer.Tick += Timer_Tick;
-            // Timer is NOT started here — it starts ONLY when Network UI is actively rendered
         }
 
         public void SetActive(bool active)
         {
-            if (active)
+            if (_isActive == active) return;
+            _isActive = active;
+
+            if (_isActive)
             {
-                if (!timer.IsEnabled)
-                {
-                    isFirstTick = true;
-                    lastCheckTime = DateTime.UtcNow;
-                    MeasureSpeed();
-                    timer.Start();
-                }
+                isFirstTick = true;
+                lastCheckTime = DateTime.UtcNow;
+                timer.Start();
+                MeasureSpeed();
             }
             else
             {
-                if (timer.IsEnabled)
-                {
-                    timer.Stop();
-                }
+                timer.Stop();
             }
         }
 
         private void Timer_Tick(object? sender, EventArgs e)
         {
-            MeasureSpeed();
+            if (_isActive) MeasureSpeed();
         }
 
         private void MeasureSpeed()
         {
+            if (_isMeasuring) return;
+            _isMeasuring = true;
             try
             {
                 long currentBytesReceived = 0;
@@ -161,6 +161,10 @@ namespace DynamicIsland.Network
                 FormattedUploadSpeed = "0.0 KB/s";
                 FormattedTotalSpeed = "Offline";
                 OnSpeedUpdated?.Invoke();
+            }
+            finally
+            {
+                _isMeasuring = false;
             }
         }
 
