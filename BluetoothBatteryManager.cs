@@ -195,10 +195,11 @@ namespace DynamicIsland
 
         public BluetoothBatteryManager()
         {
+            // Battery percentage changes slowly; real-time connects/disconnects are handled with 0 latency via WM_DEVICECHANGE
             _backgroundPoller = new System.Threading.Timer(_ =>
             {
                 Task.Run(async () => await RefreshDevicesAsync());
-            }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1.5));
+            }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(25));
         }
 
         public async Task RefreshDevicesAsync()

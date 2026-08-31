@@ -121,6 +121,9 @@ namespace DynamicIsland.Media
             }
         }
 
+        private readonly ScaleTransform[] scaleTransforms = new ScaleTransform[6];
+        private const double BaseMaxHeight = 14.5;
+
         public AudioVisualizerControl()
         {
             InitializeComponent();
@@ -130,6 +133,11 @@ namespace DynamicIsland.Media
 
             for (int i = 0; i < 6; i++)
             {
+                var st = new ScaleTransform(1.0, 3.0 / BaseMaxHeight);
+                scaleTransforms[i] = st;
+                bars[i].RenderTransformOrigin = new Point(0.5, 0.5);
+                bars[i].RenderTransform = st;
+                bars[i].Height = BaseMaxHeight;
                 currentHeights[i] = 3.0;
                 targetHeights[i] = 3.0;
             }
@@ -168,7 +176,7 @@ namespace DynamicIsland.Media
                 }
             }
 
-            // Smooth interpolation
+            // Smooth interpolation via GPU ScaleTransform (0 CPU Layout Passes)
             bool stillMoving = false;
             for (int i = 0; i < barCount; i++)
             {
@@ -176,13 +184,13 @@ namespace DynamicIsland.Media
                 if (Math.Abs(diff) > 0.15)
                 {
                     currentHeights[i] += diff * 0.45;
-                    bars[i].Height = currentHeights[i];
+                    scaleTransforms[i].ScaleY = currentHeights[i] / BaseMaxHeight;
                     stillMoving = true;
                 }
                 else
                 {
                     currentHeights[i] = targetHeights[i];
-                    bars[i].Height = currentHeights[i];
+                    scaleTransforms[i].ScaleY = currentHeights[i] / BaseMaxHeight;
                 }
             }
 

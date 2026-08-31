@@ -35,7 +35,7 @@ namespace DynamicIsland.Network
             }
             catch { }
 
-            timer.Interval = TimeSpan.FromMilliseconds(2500);
+            timer.Interval = TimeSpan.FromMilliseconds(5000);
             timer.Tick += Timer_Tick;
             timer.Start();
             MeasureSpeed();

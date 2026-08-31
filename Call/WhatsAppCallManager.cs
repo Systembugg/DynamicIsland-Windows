@@ -64,10 +64,10 @@ namespace DynamicIsland.Call
                 }
             };
 
-            // Background UI Automation scanner (3000ms — slowed down to minimize CPU cost of tree walks)
-            _scanTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(3000) };
+            // On-demand UI Automation scanner (only active during incoming/ongoing call)
+            _scanTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2000) };
             _scanTimer.Tick += (s, e) => Task.Run(() => ScanForWhatsAppCall());
-            _scanTimer.Start();
+            // NOT started here — starts only when incoming call notification or call session is active
 
             Task.Run(async () =>
             {
@@ -159,6 +159,15 @@ namespace DynamicIsland.Call
         {
             try
             {
+                if (CurrentCall == null && !IsPreviewMode)
+                {
+                    Application.Current?.Dispatcher.Invoke(() =>
+                    {
+                        if (_scanTimer.IsEnabled) _scanTimer.Stop();
+                    });
+                    return;
+                }
+
                 // GPU Optimization: Skip expensive UI Automation tree walk if no WhatsApp process is running
                 bool hasWhatsApp = false;
                 foreach (var proc in Process.GetProcesses())
@@ -348,6 +357,13 @@ namespace DynamicIsland.Call
                 NotificationId = notificationId
             };
 
+            // Start scanner on-demand to track buttons and window lifetime during the call
+            if (!_scanTimer.IsEnabled && !IsPreviewMode)
+            {
+                _scanTimer.Start();
+                Task.Run(() => ScanForWhatsAppCall());
+            }
+
             OnIncomingCall?.Invoke(CurrentCall);
         }
 
@@ -384,6 +400,7 @@ namespace DynamicIsland.Call
 
             CurrentCall.State = CallState.Ended;
             _durationTimer.Stop();
+            if (_scanTimer.IsEnabled) _scanTimer.Stop();
 
             // Programmatically invoke WhatsApp Decline button if real call
             try
