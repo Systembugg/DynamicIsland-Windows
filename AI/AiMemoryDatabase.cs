@@ -99,6 +99,38 @@ namespace DynamicIsland.AI
                 using var connection = new SqliteConnection(_connectionString);
                 connection.Open();
 
+                // Check for existing duplicate in same category
+                string checkQuery = @"
+                    SELECT Id, CreatedAt, Category, Title, Detail, Keywords, ImagePath
+                    FROM Memories
+                    WHERE LOWER(Category) = LOWER(@category) AND (LOWER(Title) = LOWER(@title) OR LOWER(Title) LIKE @titleLike)
+                    ORDER BY Id DESC LIMIT 1;
+                ";
+                using (var checkCmd = new SqliteCommand(checkQuery, connection))
+                {
+                    checkCmd.Parameters.AddWithValue("@category", item.Category);
+                    checkCmd.Parameters.AddWithValue("@title", item.Title);
+                    checkCmd.Parameters.AddWithValue("@titleLike", $"%{item.Title}%");
+                    using var r = checkCmd.ExecuteReader();
+                    if (r.Read())
+                    {
+                        var existing = ReadItem(r);
+                        // If existing found and has same or close title, update details if new detail is richer
+                        if (!string.IsNullOrWhiteSpace(item.Detail) && item.Detail.Length > existing.Detail.Length)
+                        {
+                            existing.Detail = item.Detail;
+                            if (!string.IsNullOrEmpty(item.ImagePath)) existing.ImagePath = item.ImagePath;
+                            string updateSql = "UPDATE Memories SET Detail = @detail, ImagePath = COALESCE(@imagePath, ImagePath) WHERE Id = @id;";
+                            using var uCmd = new SqliteCommand(updateSql, connection);
+                            uCmd.Parameters.AddWithValue("@detail", existing.Detail);
+                            uCmd.Parameters.AddWithValue("@imagePath", (object?)existing.ImagePath ?? DBNull.Value);
+                            uCmd.Parameters.AddWithValue("@id", existing.Id);
+                            uCmd.ExecuteNonQuery();
+                        }
+                        return existing;
+                    }
+                }
+
                 string query = @"
                     INSERT INTO Memories (CreatedAt, Category, Title, Detail, Keywords, ImagePath)
                     VALUES (@createdAt, @category, @title, @detail, @keywords, @imagePath);
@@ -123,7 +155,7 @@ namespace DynamicIsland.AI
             return item;
         }
 
-        public List<MemoryItem> SearchMemories(string searchQuery, int limit = 6)
+        public List<MemoryItem> GetAllMemories(int limit = 35)
         {
             var results = new List<MemoryItem>();
             try
@@ -134,14 +166,68 @@ namespace DynamicIsland.AI
                 string query = @"
                     SELECT Id, CreatedAt, Category, Title, Detail, Keywords, ImagePath
                     FROM Memories
-                    WHERE Title LIKE @term OR Detail LIKE @term OR Category LIKE @term OR Keywords LIKE @term
                     ORDER BY Id DESC
                     LIMIT @limit;
                 ";
 
                 using var cmd = new SqliteCommand(query, connection);
-                cmd.Parameters.AddWithValue("@term", $"%{searchQuery}%");
                 cmd.Parameters.AddWithValue("@limit", limit);
+
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    results.Add(ReadItem(reader));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AiMemoryDatabase] GetAll Error: {ex.Message}");
+            }
+
+            return results;
+        }
+
+        public List<MemoryItem> SearchMemories(string searchQuery, int limit = 10)
+        {
+            var results = new List<MemoryItem>();
+            if (string.IsNullOrWhiteSpace(searchQuery)) return GetRecentMemories(limit);
+
+            try
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+
+                var words = searchQuery.Split(new[] { ' ', ',', '.', '?', '!', '\t', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                                       .Where(w => w.Length > 2)
+                                       .Take(5)
+                                       .ToList();
+
+                var sb = new System.Text.StringBuilder();
+                sb.Append("SELECT Id, CreatedAt, Category, Title, Detail, Keywords, ImagePath FROM Memories WHERE ");
+
+                using var cmd = new SqliteCommand();
+                cmd.Connection = connection;
+
+                if (words.Count == 0)
+                {
+                    sb.Append("Title LIKE @term OR Detail LIKE @term OR Category LIKE @term OR Keywords LIKE @term");
+                    cmd.Parameters.AddWithValue("@term", $"%{searchQuery.Trim()}%");
+                }
+                else
+                {
+                    var clauses = new List<string>();
+                    for (int i = 0; i < words.Count; i++)
+                    {
+                        string pName = $"@w{i}";
+                        clauses.Add($"(Title LIKE {pName} OR Detail LIKE {pName} OR Category LIKE {pName} OR Keywords LIKE {pName})");
+                        cmd.Parameters.AddWithValue(pName, $"%{words[i]}%");
+                    }
+                    sb.Append(string.Join(" OR ", clauses));
+                }
+
+                sb.Append(" ORDER BY Id DESC LIMIT @limit;");
+                cmd.Parameters.AddWithValue("@limit", limit);
+                cmd.CommandText = sb.ToString();
 
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
@@ -154,42 +240,16 @@ namespace DynamicIsland.AI
                 System.Diagnostics.Debug.WriteLine($"[AiMemoryDatabase] Search Error: {ex.Message}");
             }
 
+            if (results.Count == 0) return GetRecentMemories(limit);
             return results;
         }
 
-        public List<MemoryItem> GetRecentMemories(int limit = 6)
+        public List<MemoryItem> GetRecentMemories(int limit = 10)
         {
-            var results = new List<MemoryItem>();
-            try
-            {
-                using var connection = new SqliteConnection(_connectionString);
-                connection.Open();
-
-                string query = @"
-                    SELECT Id, CreatedAt, Category, Title, Detail, Keywords, ImagePath
-                    FROM Memories
-                    ORDER BY Id DESC
-                    LIMIT @limit;
-                ";
-
-                using var cmd = new SqliteCommand(query, connection);
-                cmd.Parameters.AddWithValue("@limit", limit);
-
-                using var reader = cmd.ExecuteReader();
-                while (reader.Read())
-                {
-                    results.Add(ReadItem(reader));
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[AiMemoryDatabase] GetRecent Error: {ex.Message}");
-            }
-
-            return results;
+            return GetAllMemories(limit);
         }
 
-        public List<MemoryItem> GetMemoriesByCategory(string category, int limit = 10)
+        public List<MemoryItem> GetMemoriesByCategory(string category, int limit = 15)
         {
             var results = new List<MemoryItem>();
             try

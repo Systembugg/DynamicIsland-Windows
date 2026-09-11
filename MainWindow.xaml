@@ -1079,7 +1079,7 @@
             </Grid>
 
             <!-- 2.5 AI ASSISTANT EXPANDED VIEW (Adaptive Dynamic Island AI) -->
-            <Grid x:Name="AiAssistantContainer" Margin="10,8,10,8" VerticalAlignment="Top" Visibility="Collapsed">
+            <Grid x:Name="AiAssistantContainer" Margin="18,10,18,10" VerticalAlignment="Top" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -1088,8 +1088,8 @@
                 </Grid.RowDefinitions>
 
                 <!-- Row 0: Conversational Response Speech Bubble (Never clipped) -->
-                <Grid x:Name="AiResponseContainer" Grid.Row="0" Margin="4,2,4,8" Visibility="Collapsed">
-                    <ScrollViewer MaxHeight="130" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <Grid x:Name="AiResponseContainer" Grid.Row="0" Margin="2,2,2,8" Visibility="Collapsed">
+                    <ScrollViewer MaxHeight="140" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
                         <TextBlock x:Name="TxtAiResponse"
                                    Foreground="#F5F5F7" FontSize="12.5" FontWeight="Normal" LineHeight="18"
                                    TextWrapping="Wrap"/>
@@ -1097,23 +1097,23 @@
                 </Grid>
 
                 <!-- Row 1: Dynamic Memory / Watchlist Card (Shown only when card is present) -->
-                <Border x:Name="CardAiMemory" Grid.Row="1" Height="86" CornerRadius="20" Background="#262628" BorderBrush="#33FFFFFF" BorderThickness="0.8" Padding="12,10" Margin="0,0,0,8" Visibility="Collapsed">
+                <Border x:Name="CardAiMemory" Grid.Row="1" MinHeight="82" Height="Auto" CornerRadius="18" Background="#262628" BorderBrush="#33FFFFFF" BorderThickness="0.8" Padding="12,10" Margin="0,0,0,8" Visibility="Collapsed">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="48"/>
+                            <ColumnDefinition Width="46"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Left: Category / Thumbnail Circle -->
-                        <Border Grid.Column="0" Width="42" Height="42" CornerRadius="21" Background="#3A3A3C" ClipToBounds="True" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20" Background="#3A3A3C" ClipToBounds="True" HorizontalAlignment="Left" VerticalAlignment="Center">
                             <Grid>
-                                <TextBlock x:Name="TxtCardCategoryIcon" Text="🎬" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TxtCardCategoryIcon" Text="🎬" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 <Image x:Name="ImgCardThumbnail" Stretch="UniformToFill" Visibility="Collapsed"/>
                             </Grid>
                         </Border>
 
                         <!-- Right: Title, Badge, and Detail -->
-                        <Grid Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0">
+                        <Grid Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -1127,8 +1127,8 @@
                                 <TextBlock x:Name="TxtCardTimestamp" Text="Just now" Foreground="#8E8E93" FontSize="9.5" VerticalAlignment="Center"/>
                             </StackPanel>
 
-                            <TextBlock x:Name="TxtCardTitle" Grid.Row="1" Text="Saved Item" Foreground="#FFFFFF" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,1"/>
-                            <TextBlock x:Name="TxtCardDetail" Grid.Row="2" Text="Details will appear here" Foreground="#A1A1A6" FontSize="10.5" TextTrimming="CharacterEllipsis" MaxHeight="30" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="TxtCardTitle" Grid.Row="1" Text="Saved Item" Foreground="#FFFFFF" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxHeight="38" Margin="0,2,0,1"/>
+                            <TextBlock x:Name="TxtCardDetail" Grid.Row="2" Text="Details will appear here" Foreground="#A1A1A6" FontSize="10.5" TextTrimming="CharacterEllipsis" MaxHeight="44" TextWrapping="Wrap"/>
                         </Grid>
                     </Grid>
                 </Border>
@@ -1160,12 +1160,12 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- Attachment / Screenshot Button (+) -->
-                    <Border x:Name="BtnAiAttach" Grid.Column="0" Width="38" Height="38" CornerRadius="19" Background="#1C1C1E" BorderBrush="#2C2C2E" BorderThickness="1" Margin="0,0,8,0" Cursor="Hand" ToolTip="Capture &amp; Attach Screen" MouseLeftButtonDown="BtnAiAttach_MouseLeftButtonDown">
+                    <Border x:Name="BtnAiAttach" Grid.Column="0" Width="36" Height="36" CornerRadius="18" Background="#1C1C1E" BorderBrush="#2C2C2E" BorderThickness="1" Margin="0,0,8,0" Cursor="Hand" ToolTip="Capture &amp; Attach Screen" MouseLeftButtonDown="BtnAiAttach_MouseLeftButtonDown">
                         <Path Data="M 12 5 L 12 19 M 5 12 L 19 12" Stroke="#8E8E93" StrokeThickness="2.0" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="12" Height="12" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
 
                     <!-- Input Pill with Send Button -->
-                    <Border Grid.Column="1" Height="38" CornerRadius="19" Background="#1C1C1E" BorderBrush="#2C2C2E" BorderThickness="1" Padding="12,0,4,0">
+                    <Border Grid.Column="1" Height="36" CornerRadius="18" Background="#1C1C1E" BorderBrush="#2C2C2E" BorderThickness="1" Padding="12,0,4,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>

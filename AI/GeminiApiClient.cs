@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace DynamicIsland.AI
@@ -36,11 +38,11 @@ namespace DynamicIsland.AI
         {
             try
             {
-                string folder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DynamicIsland");
-                string configPath = System.IO.Path.Combine(folder, "ai_config.json");
-                if (System.IO.File.Exists(configPath))
+                string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "DynamicIsland");
+                string configPath = Path.Combine(folder, "ai_config.json");
+                if (File.Exists(configPath))
                 {
-                    string json = System.IO.File.ReadAllText(configPath);
+                    string json = File.ReadAllText(configPath);
                     using var doc = JsonDocument.Parse(json);
                     if (doc.RootElement.TryGetProperty("GeminiApiKey", out var keyProp))
                     {
@@ -65,40 +67,86 @@ namespace DynamicIsland.AI
         {
             try
             {
-                // 1. Detect if prompt is asking to recall past memories
-                var relevantMemories = SearchContextMemories(userPrompt);
+                // 1. Fetch ALL user memories so Gemini has full omniscient awareness of the user's vault
+                var allMemories = AiMemoryDatabase.Instance.GetAllMemories(35);
 
-                // 2. Build system instructions
-                string memoryContext = "";
-                if (relevantMemories.Count > 0)
+                // Group by category for structured memory presentation
+                var movieItems = allMemories.Where(m => m.Category.Equals("Movie", StringComparison.OrdinalIgnoreCase) || m.Category.Equals("Film", StringComparison.OrdinalIgnoreCase)).ToList();
+                var animeItems = allMemories.Where(m => m.Category.Equals("Anime", StringComparison.OrdinalIgnoreCase) || m.Category.Equals("Manga", StringComparison.OrdinalIgnoreCase)).ToList();
+                var seriesItems = allMemories.Where(m => m.Category.Equals("Series", StringComparison.OrdinalIgnoreCase) || m.Category.Equals("Show", StringComparison.OrdinalIgnoreCase) || m.Category.Equals("TV", StringComparison.OrdinalIgnoreCase)).ToList();
+                var taskItems = allMemories.Where(m => m.Category.Equals("Task", StringComparison.OrdinalIgnoreCase) || m.Category.Equals("Reminder", StringComparison.OrdinalIgnoreCase)).ToList();
+                var noteItems = allMemories.Where(m => !movieItems.Contains(m) && !animeItems.Contains(m) && !seriesItems.Contains(m) && !taskItems.Contains(m)).ToList();
+
+                var vaultSb = new StringBuilder();
+                vaultSb.AppendLine("\nUSER'S PERSISTENT MEMORY VAULT (Total Items: " + allMemories.Count + "):");
+
+                vaultSb.AppendLine($"[MOVIES WATCHLIST (Total: {movieItems.Count})]");
+                if (movieItems.Count > 0)
                 {
-                    memoryContext = "\nExisting User Saved Memories / Watchlist Items:\n" +
-                        string.Join("\n", relevantMemories.Select(m => $"- [ID:{m.Id}|{m.Category}|{m.CreatedAt:yyyy-MM-dd}] Title: {m.Title} | Details: {m.Detail}"));
+                    foreach (var m in movieItems) vaultSb.AppendLine($"* [ID:{m.Id}] \"{m.Title}\" | Info: {m.Detail} (Saved: {m.CreatedAt:MMM d, yyyy})");
                 }
+                else vaultSb.AppendLine("(No movies saved yet)");
 
-                string systemInstruction = @"You are the personal AI companion integrated inside Windows Dynamic Island.
-You are ultra-smart, proactive, concise, and helpful. You manage the user's personal memory vault (Movies, Anime, Series, Tasks, Notes, Screen Context).
-Keep your direct spoken response brief and friendly (1-2 sentences maximum suitable for a compact Dynamic Island UI). Never leave sentences cut off.
+                vaultSb.AppendLine($"\n[ANIME WATCHLIST (Total: {animeItems.Count})]");
+                if (animeItems.Count > 0)
+                {
+                    foreach (var m in animeItems) vaultSb.AppendLine($"* [ID:{m.Id}] \"{m.Title}\" | Info: {m.Detail} (Saved: {m.CreatedAt:MMM d, yyyy})");
+                }
+                else vaultSb.AppendLine("(No anime saved yet)");
 
-VISION & ACTIVE SCREEN INTELLIGENCE:
-When an image/screenshot is provided or when active window context is present:
-- The user may say 'i want to watch this movie', 'add this to watchlist', 'save this', 'ye movie', 'what is this', etc.
-- NEVER ask the user 'What is the title?' or 'What movie are you referring to?' if the title or content is visible on the screen or in the window title!
-- Directly extract the exact title, category (Movie, Anime, Series, Task, Note), and a concise detail from the screen image and window title.
-- Automatically save it with <MEMORY_SAVE ... /> so the user gets an instant card without typing the name!
-- In your short friendly response, confirm that you identified it and saved it (e.g. 'Got it! I see you're looking at Inception. Added it to your movie watchlist!').
+                vaultSb.AppendLine($"\n[TV SERIES & SHOWS (Total: {seriesItems.Count})]");
+                if (seriesItems.Count > 0)
+                {
+                    foreach (var m in seriesItems) vaultSb.AppendLine($"* [ID:{m.Id}] \"{m.Title}\" | Info: {m.Detail} (Saved: {m.CreatedAt:MMM d, yyyy})");
+                }
+                else vaultSb.AppendLine("(No series saved yet)");
 
-ACTION TAGS:
-If the user wants to remember/save/add something (or when identifying content from screen to save):
-Output your friendly response, followed by a memory save tag at the end in this format:
-<MEMORY_SAVE category=""Movie|Anime|Series|Task|Note|Screen|General"" title=""Exact Title"" detail=""Quick synopsis or info""/>
+                vaultSb.AppendLine($"\n[TASKS & REMINDERS (Total: {taskItems.Count})]");
+                if (taskItems.Count > 0)
+                {
+                    foreach (var m in taskItems) vaultSb.AppendLine($"* [ID:{m.Id}] \"{m.Title}\" | Info: {m.Detail} (Saved: {m.CreatedAt:MMM d, yyyy})");
+                }
+                else vaultSb.AppendLine("(No tasks saved yet)");
 
-If the user is asking about an item that exists in their memories, mention it naturally and include:
-<MEMORY_SHOW id=""matched_id""/>
+                vaultSb.AppendLine($"\n[NOTES, SCREENSHOTS & GENERAL (Total: {noteItems.Count})]");
+                if (noteItems.Count > 0)
+                {
+                    foreach (var m in noteItems.Take(8)) vaultSb.AppendLine($"* [ID:{m.Id}] \"{m.Title}\" | Info: {m.Detail} (Saved: {m.CreatedAt:MMM d, yyyy})");
+                }
+                else vaultSb.AppendLine("(No general notes saved yet)");
+
+                string memoryContext = vaultSb.ToString();
+
+                string systemInstruction = @"You are the Personal AI Companion integrated inside Windows Dynamic Island.
+You are ultra-smart, proactive, concise, helpful, and speak naturally in English, Hindi, or Hinglish (matching the user's phrasing).
+
+CRITICAL CONVERSATIONAL & MEMORY RULES:
+1. ACCURATE MEMORY RECALL (NEVER FORGET OR MISS ITEMS):
+- Refer to the USER'S PERSISTENT MEMORY VAULT below. It contains the complete real-time record of all items saved.
+- When the user asks what is saved, asks for their watchlist, or asks what movies/anime/items exist (e.g., 'konsi movie hai', 'bata kitne movie save kiya', 'meri watchlist', 'what movies did i save', 'aur konsi hai'):
+  ALWAYS list ALL items belonging to that category!
+  Example: 'Aapki movie watchlist me 2 movies hain: 1. Ice Cream Man (2026), 2. The End of Oak Street.'
+  NEVER miss any item or falsely claim there is only 1 item if multiple exist!
+- If the user asks about a specific item or the latest item, you can display its rich visual card by appending:
+  <MEMORY_SHOW id=""exact_id""/> at the very end of your response.
+
+2. VISION & ACTIVE SCREEN INTELLIGENCE:
+- When an image/screenshot is provided or when active window context is present:
+  The user may say 'i want to watch this movie', 'add this to watchlist', 'ye movie save kar', 'what is this', etc.
+- NEVER ask 'What is the title?' if the title or content is visible on the screen or in the window title!
+- Directly extract the exact title, category (Movie, Anime, Series, Task, Note), and a concise detail from screen and context.
+- Automatically save it with <MEMORY_SAVE category=""..."" title=""..."" detail=""...""/> at the end of your response!
+- In your short friendly response, confirm that you recognized it and saved it (e.g. 'Got it! Added Inception to your Movie watchlist.').
+
+3. ACTION TAGS & CLEAN OUTPUT (ABSOLUTELY NO LEAKING PAYLOAD):
+- NEVER output raw XML or payload tags in the middle of your spoken response.
+- If saving: Append <MEMORY_SAVE category=""Movie|Anime|Series|Task|Note|Screen|General"" title=""Exact Title"" detail=""Quick synopsis or info""/> at the very end.
+- If showing a specific existing card: Append <MEMORY_SHOW id=""id""/> at the very end.
+- NEVER wrap action tags in markdown code blocks (e.g. ```xml). Just append the single tag at the end.
 
 Respond in the user's language (English, Hindi, or Hinglish as prompted)." + memoryContext;
 
-                // 3. Build Gemini Request Payload
+                // 2. Build Gemini Request Payload
                 var contentsNode = new JsonArray();
                 var partsNode = new JsonArray();
 
@@ -163,9 +211,9 @@ Respond in the user's language (English, Hindi, or Hinglish as prompted)." + mem
                 var responseJson = JsonNode.Parse(responseString);
                 string fullResponse = responseJson?["candidates"]?[0]?["content"]?[partsNode.Count > 0 ? "parts" : "parts"]?[0]?["text"]?.ToString() ?? "";
 
-                // Parse tags
+                // Parse tags and sanitize
                 var result = new AiResponseResult();
-                result.Text = ExtractCleanTextAndHandleTags(fullResponse, attachedImagePath, relevantMemories, out var matched);
+                result.Text = ExtractCleanTextAndHandleTags(fullResponse, attachedImagePath, allMemories, out var matched);
                 result.MatchedMemory = matched;
 
                 return result;
@@ -180,95 +228,81 @@ Respond in the user's language (English, Hindi, or Hinglish as prompted)." + mem
             }
         }
 
-        private List<MemoryItem> SearchContextMemories(string prompt)
-        {
-            string pLower = prompt.ToLowerInvariant();
-            if (pLower.Contains("watch") || pLower.Contains("movie") || pLower.Contains("film") || pLower.Contains("cinema"))
-            {
-                return AiMemoryDatabase.Instance.GetMemoriesByCategory("Movie", 8);
-            }
-            if (pLower.Contains("anime") || pLower.Contains("manga"))
-            {
-                return AiMemoryDatabase.Instance.GetMemoriesByCategory("Anime", 8);
-            }
-            if (pLower.Contains("series") || pLower.Contains("show") || pLower.Contains("tv"))
-            {
-                return AiMemoryDatabase.Instance.GetMemoriesByCategory("Series", 8);
-            }
-            if (pLower.Contains("remember") || pLower.Contains("saved") || pLower.Contains("note") || pLower.Contains("kya tha") || pLower.Contains("bata"))
-            {
-                var search = AiMemoryDatabase.Instance.SearchMemories(prompt, 6);
-                if (search.Count == 0) search = AiMemoryDatabase.Instance.GetRecentMemories(6);
-                return search;
-            }
-
-            return new List<MemoryItem>();
-        }
-
-        private string ExtractCleanTextAndHandleTags(string rawText, string? attachedImagePath, List<MemoryItem> contextMemories, out MemoryItem? cardItem)
+        private string ExtractCleanTextAndHandleTags(string rawText, string? attachedImagePath, List<MemoryItem> allMemories, out MemoryItem? cardItem)
         {
             cardItem = null;
 
-            // Check for <MEMORY_SAVE ... />
-            if (rawText.Contains("<MEMORY_SAVE"))
+            // 1. Robust Regex extraction for <MEMORY_SAVE ...>
+            var saveMatch = Regex.Match(rawText, @"<MEMORY_SAVE\b([^>]*?)(?:/>|>.*?</MEMORY_SAVE>|>)", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (saveMatch.Success)
             {
-                int start = rawText.IndexOf("<MEMORY_SAVE");
-                int end = rawText.IndexOf("/>", start);
-                if (end > start)
+                string tagContent = saveMatch.Value;
+                string attrs = saveMatch.Groups[1].Value;
+
+                string category = ExtractRegexAttr(attrs, "category") ?? "Note";
+                string title = ExtractRegexAttr(attrs, "title") ?? "New Memory";
+                string detail = ExtractRegexAttr(attrs, "detail") ?? "";
+
+                if (string.IsNullOrWhiteSpace(detail) && tagContent.Contains("</MEMORY_SAVE>"))
                 {
-                    string tag = rawText.Substring(start, end - start + 2);
-                    string category = ExtractAttribute(tag, "category") ?? "Note";
-                    string title = ExtractAttribute(tag, "title") ?? "New Memory";
-                    string detail = ExtractAttribute(tag, "detail") ?? "";
+                    int bodyStart = tagContent.IndexOf('>') + 1;
+                    int bodyEnd = tagContent.LastIndexOf('<');
+                    if (bodyEnd > bodyStart) detail = tagContent.Substring(bodyStart, bodyEnd - bodyStart).Trim();
+                }
 
-                    cardItem = AiMemoryDatabase.Instance.SaveMemory(category, title, detail, attachedImagePath);
+                cardItem = AiMemoryDatabase.Instance.SaveMemory(category, title, detail, attachedImagePath);
+            }
 
-                    rawText = rawText.Remove(start, end - start + 2).Trim();
-                    return rawText;
+            // 2. Robust Regex extraction for <MEMORY_SHOW ...>
+            var showMatch = Regex.Match(rawText, @"<MEMORY_SHOW\b([^>]*?)(?:/>|>.*?</MEMORY_SHOW>|>)", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (showMatch.Success && cardItem == null)
+            {
+                string attrs = showMatch.Groups[1].Value;
+                string idStr = ExtractRegexAttr(attrs, "id") ?? "";
+                if (int.TryParse(idStr, out int id))
+                {
+                    cardItem = allMemories.FirstOrDefault(m => m.Id == id);
+                }
+                if (cardItem == null && allMemories.Count > 0)
+                {
+                    cardItem = allMemories.First();
                 }
             }
 
-            // Check for <MEMORY_SHOW id="..." />
-            if (rawText.Contains("<MEMORY_SHOW"))
+            // 3. Fallback: If no action tag, check if raw text specifically refers to an item in memory
+            if (cardItem == null && allMemories.Count > 0)
             {
-                int start = rawText.IndexOf("<MEMORY_SHOW");
-                int end = rawText.IndexOf("/>", start);
-                if (end > start)
+                foreach (var m in allMemories)
                 {
-                    string tag = rawText.Substring(start, end - start + 2);
-                    string idStr = ExtractAttribute(tag, "id") ?? "";
-                    if (int.TryParse(idStr, out int id))
+                    if (!string.IsNullOrWhiteSpace(m.Title) && m.Title.Length >= 4 &&
+                        rawText.Contains(m.Title, StringComparison.OrdinalIgnoreCase))
                     {
-                        cardItem = contextMemories.FirstOrDefault(m => m.Id == id);
+                        cardItem = m;
+                        break;
                     }
-                    if (cardItem == null && contextMemories.Count > 0)
-                    {
-                        cardItem = contextMemories.First();
-                    }
-
-                    rawText = rawText.Remove(start, end - start + 2).Trim();
-                    return rawText;
                 }
             }
 
-            // Fallback: if we had a strong context match and the answer references it
-            if (contextMemories.Count > 0 && (rawText.ToLowerInvariant().Contains(contextMemories[0].Title.ToLowerInvariant()) || contextMemories.Count == 1))
-            {
-                cardItem = contextMemories[0];
-            }
+            // 4. STRIP ALL ACTION TAGS, CODE FENCES, AND MARKUP LEAKS COMPLETELY!
+            string cleanText = rawText;
+            cleanText = Regex.Replace(cleanText, @"```(?:xml|json)?\s*<MEMORY_[^>]*>.*?```", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            cleanText = Regex.Replace(cleanText, @"<MEMORY_SAVE\b[^>]*?(?:/>|>.*?</MEMORY_SAVE>|>)", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            cleanText = Regex.Replace(cleanText, @"<MEMORY_SHOW\b[^>]*?(?:/>|>.*?</MEMORY_SHOW>|>)", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            cleanText = Regex.Replace(cleanText, @"</?MEMORY_[^>]*>", "", RegexOptions.IgnoreCase); // Any stray tags
+            cleanText = cleanText.Trim();
 
-            return rawText.Trim();
+            return cleanText;
         }
 
-        private string? ExtractAttribute(string tag, string attrName)
+        private string? ExtractRegexAttr(string text, string attrName)
         {
-            string pattern = $"{attrName}=\"";
-            int idx = tag.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
-            if (idx == -1) return null;
-            idx += pattern.Length;
-            int end = tag.IndexOf("\"", idx);
-            if (end == -1) return null;
-            return tag.Substring(idx, end - idx);
+            var match = Regex.Match(text, $@"{attrName}\s*=\s*[""']([^""']*)[""']", RegexOptions.IgnoreCase);
+            if (match.Success) return match.Groups[1].Value.Trim();
+
+            var unquoted = Regex.Match(text, $@"{attrName}\s*=\s*([^\s>]+)", RegexOptions.IgnoreCase);
+            if (unquoted.Success) return unquoted.Groups[1].Value.Trim();
+
+            return null;
         }
     }
 }
