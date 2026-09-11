@@ -1079,7 +1079,7 @@
             </Grid>
 
             <!-- 2.5 AI ASSISTANT EXPANDED VIEW (Adaptive Dynamic Island AI) -->
-            <Grid x:Name="AiAssistantContainer" Margin="10,6,10,6" VerticalAlignment="Center" Visibility="Collapsed">
+            <Grid x:Name="AiAssistantContainer" Margin="10,8,10,8" VerticalAlignment="Top" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -1087,11 +1087,13 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Row 0: Conversational Response Speech Bubble (Shown only when Gemini answers) -->
-                <Grid x:Name="AiResponseContainer" Grid.Row="0" Margin="2,4,2,8" Visibility="Collapsed">
-                    <TextBlock x:Name="TxtAiResponse"
-                               Foreground="#F5F5F7" FontSize="13" FontWeight="Normal" LineHeight="19"
-                               TextWrapping="Wrap" MaxHeight="80" VerticalAlignment="Top"/>
+                <!-- Row 0: Conversational Response Speech Bubble (Never clipped) -->
+                <Grid x:Name="AiResponseContainer" Grid.Row="0" Margin="4,2,4,8" Visibility="Collapsed">
+                    <ScrollViewer MaxHeight="130" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                        <TextBlock x:Name="TxtAiResponse"
+                                   Foreground="#F5F5F7" FontSize="12.5" FontWeight="Normal" LineHeight="18"
+                                   TextWrapping="Wrap"/>
+                    </ScrollViewer>
                 </Grid>
 
                 <!-- Row 1: Dynamic Memory / Watchlist Card (Shown only when card is present) -->
@@ -1133,12 +1135,9 @@
 
                 <!-- Row 2: Status / Thinking / Attachment Chips -->
                 <StackPanel Grid.Row="2" Orientation="Vertical" Margin="2,0,2,4">
-                    <!-- Thinking Indicator -->
-                    <StackPanel x:Name="AiLoadingIndicator" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed" Margin="2,0,0,4">
-                        <Ellipse Width="6" Height="6" Fill="#0A84FF" Margin="0,0,4,0"/>
-                        <Ellipse Width="6" Height="6" Fill="#BD00FF" Margin="0,0,4,0"/>
-                        <Ellipse Width="6" Height="6" Fill="#FF007A" Margin="0,0,6,0"/>
-                        <TextBlock Text="Thinking..." Foreground="#8E8E93" FontSize="11" FontWeight="Medium" VerticalAlignment="Center"/>
+                    <!-- Thinking Indicator (Clean, minimal, zero dots) -->
+                    <StackPanel x:Name="AiLoadingIndicator" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed" Margin="6,2,0,6">
+                        <TextBlock Text="Thinking..." Foreground="#98989D" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <!-- Screen Attached Chip -->

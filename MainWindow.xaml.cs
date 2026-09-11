@@ -75,6 +75,7 @@ namespace DynamicIsland
         private bool isAiActive = false;
         private string? _pendingScreenshotPath = null;
         private string? _pendingScreenshotBase64 = null;
+        private string _lastActiveWindowTitle = "";
         private bool isDndOn = false;
         private bool isInitialDndLoaded = false;
         private bool isLyricsViewActive = false;
@@ -175,6 +176,22 @@ namespace DynamicIsland
 
         [DllImport("user32.dll")]
         private static extern short GetKeyState(int nVirtKey);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        private static string GetActiveWindowTitle()
+        {
+            try
+            {
+                IntPtr hwnd = GetForegroundWindow();
+                if (hwnd == IntPtr.Zero) return "";
+                var sb = new StringBuilder(256);
+                int len = GetWindowText(hwnd, sb, 256);
+                return len > 0 ? sb.ToString().Trim() : "";
+            }
+            catch { return ""; }
+        }
 
         private delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
@@ -836,8 +853,13 @@ namespace DynamicIsland
                 // 4. Personal AI Companion Toggle Hotkey (F9)
                 else if (kbd.vkCode == VK_F9)
                 {
+                    string fgTitle = GetActiveWindowTitle();
                     activeInstance?.Dispatcher.InvokeAsync(() =>
                     {
+                        if (!string.IsNullOrWhiteSpace(fgTitle) && !fgTitle.Contains("DynamicIsland"))
+                        {
+                            activeInstance._lastActiveWindowTitle = fgTitle;
+                        }
                         activeInstance.ToggleAiView();
                     });
                     return (IntPtr)1; // Consume event
@@ -6313,9 +6335,56 @@ namespace DynamicIsland
             double thinkingH = currentMode == ShapeDisplayMode.Notch ? 88 : 82;
             AnimateSize(380, thinkingH);
 
+            // AUTO-VISION & ACTIVE SCREEN INTELLIGENCE:
+            // If user did not manually attach a screenshot, auto-capture if query is contextual
+            if (string.IsNullOrEmpty(screenPath))
+            {
+                bool isContextual = query.Contains("this", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("it", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("ye", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("screen", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("watch", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("movie", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("anime", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("show", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("series", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("video", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("trailer", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("dekh", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("bata", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("save", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("remember", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("add", StringComparison.OrdinalIgnoreCase) ||
+                                    query.Contains("what", StringComparison.OrdinalIgnoreCase);
+
+                if (isContextual)
+                {
+                    try
+                    {
+                        var (capPath, capB64) = ScreenCaptureHelper.CaptureScreen();
+                        if (!string.IsNullOrEmpty(capPath) && !string.IsNullOrEmpty(capB64))
+                        {
+                            screenPath = capPath;
+                            screenB64 = capB64;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[AutoScreenCapture] {ex.Message}");
+                    }
+                }
+            }
+
+            // Append active window context if available
+            string enrichedQuery = query;
+            if (!string.IsNullOrWhiteSpace(_lastActiveWindowTitle))
+            {
+                enrichedQuery += $"\n[Active Window/Browser Context: {_lastActiveWindowTitle}]";
+            }
+
             try
             {
-                var result = await GeminiApiClient.Instance.ProcessQueryAsync(query, screenPath, screenB64);
+                var result = await GeminiApiClient.Instance.ProcessQueryAsync(enrichedQuery, screenPath, screenB64);
 
                 AiLoadingIndicator.Visibility = Visibility.Collapsed;
 
@@ -6358,8 +6427,11 @@ namespace DynamicIsland
                     AiResponseContainer.Visibility = Visibility.Visible;
                     CardAiMemory.Visibility = Visibility.Visible;
 
-                    // Smooth adaptive size for Card + Text Response
-                    double targetH = currentMode == ShapeDisplayMode.Notch ? 225 : 215;
+                    // Dynamically measure text height so NOTHING is ever cut off!
+                    TxtAiResponse.Measure(new Size(346, double.PositiveInfinity));
+                    double textH = Math.Max(22, TxtAiResponse.DesiredSize.Height);
+
+                    double targetH = Math.Clamp(textH + 86 + 62 + (currentMode == ShapeDisplayMode.Notch ? 14 : 6), 215, 360);
                     AnimateSize(380, targetH);
                 }
                 else
@@ -6368,8 +6440,11 @@ namespace DynamicIsland
                     TxtAiResponse.Text = string.IsNullOrWhiteSpace(result.Text) ? "Done!" : result.Text;
                     AiResponseContainer.Visibility = Visibility.Visible;
 
-                    // Smooth adaptive size for Text-only Response
-                    double targetH = currentMode == ShapeDisplayMode.Notch ? 125 : 115;
+                    // Dynamically measure text height so text is NEVER clipped!
+                    TxtAiResponse.Measure(new Size(346, double.PositiveInfinity));
+                    double textH = Math.Max(22, TxtAiResponse.DesiredSize.Height);
+
+                    double targetH = Math.Clamp(textH + 38 + 48 + (currentMode == ShapeDisplayMode.Notch ? 14 : 6), 110, 240);
                     AnimateSize(380, targetH);
                 }
 
@@ -6382,7 +6457,7 @@ namespace DynamicIsland
                 TxtAiResponse.Text = "Sorry, couldn't process your request right now.";
                 AiResponseContainer.Visibility = Visibility.Visible;
                 CardAiMemory.Visibility = Visibility.Collapsed;
-                double targetH = currentMode == ShapeDisplayMode.Notch ? 100 : 92;
+                double targetH = currentMode == ShapeDisplayMode.Notch ? 104 : 96;
                 AnimateSize(380, targetH);
                 System.Diagnostics.Debug.WriteLine($"[AiAssistant] Error: {ex.Message}");
             }
