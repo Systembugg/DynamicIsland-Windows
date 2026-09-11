@@ -122,6 +122,7 @@ namespace DynamicIsland
         private DispatcherTimer dndAutoHideTimer = new();
         private DispatcherTimer bluetoothAutoHideTimer = new();
         private DispatcherTimer capsLockAutoHideTimer = new();
+        private DispatcherTimer aiAutoHideTimer = new();
         private bool isCapsLockHudActive = false;
         private readonly DispatcherTimer btConnectingArcTimer = new DispatcherTimer(DispatcherPriority.Render);
         private double btConnectingProgress = 0.0;
@@ -271,6 +272,8 @@ namespace DynamicIsland
 
             bluetoothAutoHideTimer.Interval = TimeSpan.FromMilliseconds(3500);
             bluetoothAutoHideTimer.Tick += BluetoothAutoHideTimer_Tick;
+
+            InitAiTimer();
 
             btConnectingArcTimer.Interval = TimeSpan.FromMilliseconds(40);
             btConnectingArcTimer.Tick += (s, e) =>
@@ -757,16 +760,19 @@ namespace DynamicIsland
 
         private void Window_MouseEnter(object sender, MouseEventArgs e)
         {
+            if (isAiActive) return;
             if (!isExpanded && !isVolumeHudActive && !isDndHudActive && !isBrightnessHudActive && !isBluetoothHudActive && !isAirDropHudActive && !isAirDropTransferActive)
             {
-                // Subtle smooth hover cushion
-                double currentW = ShapeRoot.Width;
-                AnimateSize(currentW + 8, ShapeRoot.Height);
+                // Subtle smooth hover cushion - based strictly on base width, NEVER accumulating
+                double baseW = currentMode == ShapeDisplayMode.Notch ? notchBaseWidth : islandBaseWidth;
+                double baseH = currentMode == ShapeDisplayMode.Notch ? notchHeight : islandHeight;
+                AnimateSize(baseW + 8, baseH);
             }
         }
 
         private void Window_MouseLeave(object sender, MouseEventArgs e)
         {
+            if (isAiActive) return;
             if (!isExpanded && !isVolumeHudActive && !isDndHudActive && !isBrightnessHudActive && !isBluetoothHudActive && !isAirDropHudActive && !isAirDropTransferActive)
             {
                 UpdateIndicatorVisuals();
@@ -777,7 +783,7 @@ namespace DynamicIsland
         {
             if (nCode >= 0 && (wParam == (IntPtr)WM_LBUTTONDOWN || wParam == (IntPtr)WM_RBUTTONDOWN || wParam == (IntPtr)WM_NCLBUTTONDOWN))
             {
-                if (activeInstance != null && activeInstance.isExpanded && !activeInstance.isDraggingDockItem)
+                if (activeInstance != null && (activeInstance.isExpanded || activeInstance.isAiActive) && !activeInstance.isDraggingDockItem)
                 {
                     var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
                     activeInstance.Dispatcher.InvokeAsync(() =>
@@ -6027,9 +6033,9 @@ namespace DynamicIsland
                 return;
             }
 
-            // Apple Design Principle 4 (Critically Damped Spring: Damping 1.0, Response 0.32s)
-            var ease = new QuarticEase { EasingMode = EasingMode.EaseOut };
-            var duration = TimeSpan.FromMilliseconds(320);
+            // Apple Design Principle 4 (Critically Damped Spring: Damping 1.0, Response 0.26s)
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var duration = TimeSpan.FromMilliseconds(260);
 
             var wAnim = new DoubleAnimation(currentW, targetWidth, duration) { EasingFunction = ease };
             var hAnim = new DoubleAnimation(currentH, targetHeight, duration) { EasingFunction = ease };
@@ -6126,6 +6132,19 @@ namespace DynamicIsland
 
         #region AI Assistant Engine (Gemini 2.5 + SQLite Memory + Vision)
 
+        private void InitAiTimer()
+        {
+            aiAutoHideTimer.Interval = TimeSpan.FromSeconds(25);
+            aiAutoHideTimer.Tick += (s, e) =>
+            {
+                aiAutoHideTimer.Stop();
+                if (isAiActive && string.IsNullOrWhiteSpace(TxtAiInput.Text))
+                {
+                    CloseAiView();
+                }
+            };
+        }
+
         public void ToggleAiView()
         {
             if (isAiActive)
@@ -6143,20 +6162,29 @@ namespace DynamicIsland
             isAiActive = true;
             isExpanded = false;
 
-            // Stop any HUD auto-hide timers if active
+            // Stop any other HUD auto-hide timers
             volumeAutoHideTimer.Stop();
             brightnessAutoHideTimer.Stop();
             dndAutoHideTimer.Stop();
             bluetoothAutoHideTimer.Stop();
             capsLockAutoHideTimer.Stop();
+            aiAutoHideTimer.Stop();
 
             HideAllHudViews();
             UniversalExpandedContainer.Visibility = Visibility.Collapsed;
             StealthView.Visibility = Visibility.Collapsed;
             AiAssistantContainer.Visibility = Visibility.Visible;
 
-            double targetW = 374;
-            double targetH = 315;
+            // Clean, adaptive start: NO cards, NO responses yet
+            AiResponseContainer.Visibility = Visibility.Collapsed;
+            TxtAiResponse.Text = "";
+            CardAiMemory.Visibility = Visibility.Collapsed;
+            AiLoadingIndicator.Visibility = Visibility.Collapsed;
+            AiAttachmentChip.Visibility = Visibility.Collapsed;
+
+            // Sleek, compact floating input pill!
+            double targetW = 380;
+            double targetH = currentMode == ShapeDisplayMode.Notch ? 56 : 52;
             AnimateSize(targetW, targetH);
 
             // Focus text input
@@ -6172,10 +6200,17 @@ namespace DynamicIsland
         {
             if (!isAiActive) return;
             isAiActive = false;
+            aiAutoHideTimer.Stop();
+
             AiAssistantContainer.Visibility = Visibility.Collapsed;
+            AiResponseContainer.Visibility = Visibility.Collapsed;
+            CardAiMemory.Visibility = Visibility.Collapsed;
+            AiLoadingIndicator.Visibility = Visibility.Collapsed;
+            TxtAiInput.Text = "";
 
             ClearPendingAttachment();
 
+            // Smoothly collapse back to standard compact island/notch
             double targetW = currentMode == ShapeDisplayMode.Notch ? notchBaseWidth : islandBaseWidth;
             double targetH = currentMode == ShapeDisplayMode.Notch ? notchHeight : islandHeight;
             AnimateSize(targetW, targetH);
@@ -6183,15 +6218,10 @@ namespace DynamicIsland
             UpdateIndicatorVisuals();
         }
 
-        private void BtnCloseAi_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            e.Handled = true;
-            CloseAiView();
-        }
-
         private void BtnAiAttach_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             e.Handled = true;
+            aiAutoHideTimer.Stop();
             try
             {
                 var (path, b64) = ScreenCaptureHelper.CaptureScreen();
@@ -6200,7 +6230,10 @@ namespace DynamicIsland
                     _pendingScreenshotPath = path;
                     _pendingScreenshotBase64 = b64;
                     AiAttachmentChip.Visibility = Visibility.Visible;
-                    TxtAiResponse.Text = "Screenshot attached! Ask a question about your screen, or tell me to remember it.";
+
+                    // Smoothly expand slightly for attachment chip
+                    double targetH = currentMode == ShapeDisplayMode.Notch ? 88 : 82;
+                    AnimateSize(380, targetH);
                 }
             }
             catch (Exception ex)
@@ -6213,6 +6246,12 @@ namespace DynamicIsland
         {
             e.Handled = true;
             ClearPendingAttachment();
+            // Adapt back down
+            if (AiResponseContainer.Visibility != Visibility.Visible && CardAiMemory.Visibility != Visibility.Visible)
+            {
+                double targetH = currentMode == ShapeDisplayMode.Notch ? 56 : 52;
+                AnimateSize(380, targetH);
+            }
         }
 
         private void ClearPendingAttachment()
@@ -6224,6 +6263,7 @@ namespace DynamicIsland
 
         private void TxtAiInput_TextChanged(object sender, TextChangedEventArgs e)
         {
+            aiAutoHideTimer.Stop();
             bool hasText = !string.IsNullOrWhiteSpace(TxtAiInput.Text);
             TxtAiPlaceholder.Visibility = hasText ? Visibility.Collapsed : Visibility.Visible;
             BtnAiSend.Background = hasText ? new SolidColorBrush(Color.FromRgb(0x0A, 0x84, 0xFF)) : new SolidColorBrush(Color.FromRgb(0x2C, 0x2C, 0x2E));
@@ -6232,6 +6272,7 @@ namespace DynamicIsland
 
         private void TxtAiInput_KeyDown(object sender, KeyEventArgs e)
         {
+            aiAutoHideTimer.Stop();
             if (e.Key == Key.Enter && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
             {
                 e.Handled = true;
@@ -6260,18 +6301,23 @@ namespace DynamicIsland
 
             TxtAiInput.Text = "";
             ClearPendingAttachment();
+            aiAutoHideTimer.Stop();
 
-            // Set UI to loading state
+            // Set UI to loading / thinking state
             AiLoadingIndicator.Visibility = Visibility.Visible;
+            AiResponseContainer.Visibility = Visibility.Collapsed;
             TxtAiResponse.Text = "";
             CardAiMemory.Visibility = Visibility.Collapsed;
+
+            // Adapt height for thinking state
+            double thinkingH = currentMode == ShapeDisplayMode.Notch ? 88 : 82;
+            AnimateSize(380, thinkingH);
 
             try
             {
                 var result = await GeminiApiClient.Instance.ProcessQueryAsync(query, screenPath, screenB64);
 
                 AiLoadingIndicator.Visibility = Visibility.Collapsed;
-                TxtAiResponse.Text = string.IsNullOrWhiteSpace(result.Text) ? "Done!" : result.Text;
 
                 if (result.HasCard && result.MatchedMemory != null)
                 {
@@ -6308,17 +6354,36 @@ namespace DynamicIsland
                         TxtCardCategoryIcon.Visibility = Visibility.Visible;
                     }
 
+                    TxtAiResponse.Text = string.IsNullOrWhiteSpace(result.Text) ? "Saved to memory." : result.Text;
+                    AiResponseContainer.Visibility = Visibility.Visible;
                     CardAiMemory.Visibility = Visibility.Visible;
+
+                    // Smooth adaptive size for Card + Text Response
+                    double targetH = currentMode == ShapeDisplayMode.Notch ? 225 : 215;
+                    AnimateSize(380, targetH);
                 }
                 else
                 {
                     CardAiMemory.Visibility = Visibility.Collapsed;
+                    TxtAiResponse.Text = string.IsNullOrWhiteSpace(result.Text) ? "Done!" : result.Text;
+                    AiResponseContainer.Visibility = Visibility.Visible;
+
+                    // Smooth adaptive size for Text-only Response
+                    double targetH = currentMode == ShapeDisplayMode.Notch ? 125 : 115;
+                    AnimateSize(380, targetH);
                 }
+
+                // Start auto-hide timer after Gemini finishes speaking (e.g. 25s)
+                aiAutoHideTimer.Start();
             }
             catch (Exception ex)
             {
                 AiLoadingIndicator.Visibility = Visibility.Collapsed;
                 TxtAiResponse.Text = "Sorry, couldn't process your request right now.";
+                AiResponseContainer.Visibility = Visibility.Visible;
+                CardAiMemory.Visibility = Visibility.Collapsed;
+                double targetH = currentMode == ShapeDisplayMode.Notch ? 100 : 92;
+                AnimateSize(380, targetH);
                 System.Diagnostics.Debug.WriteLine($"[AiAssistant] Error: {ex.Message}");
             }
         }
