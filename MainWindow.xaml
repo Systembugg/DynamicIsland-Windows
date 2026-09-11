@@ -1078,6 +1078,136 @@
                 </Grid>
             </Grid>
 
+            <!-- 2.5 AI ASSISTANT EXPANDED VIEW (Apple Intelligence + Gemini 2.5) -->
+            <Grid x:Name="AiAssistantContainer" Margin="14,10,14,12" VerticalAlignment="Stretch" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Row 0: Header with Intelligence Pill & Close Button -->
+                <Grid Grid.Row="0" Margin="2,0,2,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="7" Height="7" Margin="0,0,6,0">
+                            <Ellipse.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#00E5FF" Offset="0"/>
+                                    <GradientStop Color="#BD00FF" Offset="0.5"/>
+                                    <GradientStop Color="#FF007A" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <TextBlock Text="Intelligence" Foreground="#98989D" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Border x:Name="BtnCloseAi" Grid.Column="1" Width="22" Height="22" CornerRadius="11" Background="#20FFFFFF" Cursor="Hand" ToolTip="Close (Esc)" MouseLeftButtonDown="BtnCloseAi_MouseLeftButtonDown">
+                        <Path Data="{StaticResource IconXMark}" Fill="#8E8E93" Width="8" Height="8" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </Grid>
+
+                <!-- Row 1: Conversational Response Speech -->
+                <Grid Grid.Row="1" Margin="2,2,2,6">
+                    <TextBlock x:Name="TxtAiResponse"
+                               Text="Ask me anything, or tell me to remember movies, anime, tasks, or take a screenshot."
+                               Foreground="#F2F2F7" FontSize="12.5" FontWeight="Normal" LineHeight="18"
+                               TextWrapping="Wrap" MaxHeight="60" VerticalAlignment="Top"/>
+                    <StackPanel x:Name="AiLoadingIndicator" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed" Margin="0,4,0,0">
+                        <Ellipse Width="6" Height="6" Fill="#0A84FF" Margin="0,0,4,0"/>
+                        <Ellipse Width="6" Height="6" Fill="#BD00FF" Margin="0,0,4,0"/>
+                        <Ellipse Width="6" Height="6" Fill="#FF007A" Margin="0,0,6,0"/>
+                        <TextBlock Text="Thinking..." Foreground="#8E8E93" FontSize="11" FontWeight="Medium" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Row 2: Dynamic Memory / Watchlist / Content Card -->
+                <Grid Grid.Row="2" VerticalAlignment="Center" Margin="0,2,0,6">
+                    <Border x:Name="CardAiMemory" Height="93" CornerRadius="22" Background="#262628" BorderBrush="#2E2E32" BorderThickness="1" Padding="12,10" Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="54"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Left: Thumbnail / Category Icon Badge -->
+                            <Border Grid.Column="0" Width="46" Height="46" CornerRadius="23" Background="#3A3A3C" ClipToBounds="True" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <Grid>
+                                    <TextBlock x:Name="TxtCardCategoryIcon" Text="🎬" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Image x:Name="ImgCardThumbnail" Stretch="UniformToFill" Visibility="Collapsed"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Right: Category, Title, and Detail -->
+                            <Grid Grid.Column="1" VerticalAlignment="Center" Margin="6,0,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border CornerRadius="5" Background="#38383A" Padding="6,1" Margin="0,0,6,0">
+                                        <TextBlock x:Name="TxtCardBadge" Text="MOVIE" Foreground="#0A84FF" FontSize="9" FontWeight="Bold"/>
+                                    </Border>
+                                    <TextBlock x:Name="TxtCardTimestamp" Text="Just now" Foreground="#8E8E93" FontSize="10" VerticalAlignment="Center"/>
+                                </StackPanel>
+
+                                <TextBlock x:Name="TxtCardTitle" Grid.Row="1" Text="Saved Item" Foreground="#FFFFFF" FontSize="13.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,3,0,1"/>
+                                <TextBlock x:Name="TxtCardDetail" Grid.Row="2" Text="Details will appear here" Foreground="#A1A1A6" FontSize="11" TextTrimming="CharacterEllipsis" MaxHeight="32" TextWrapping="Wrap"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Row 3: Attachment Chip (Screenshot / Screen Context) -->
+                <Border x:Name="AiAttachmentChip" Grid.Row="3" Visibility="Collapsed" HorizontalAlignment="Left" CornerRadius="12" Background="#262628" BorderBrush="#3A3A3C" BorderThickness="1" Padding="8,4" Margin="2,0,0,6">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="{StaticResource IconScreenShareLeft}" Fill="#0A84FF" Width="11" Height="11" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBlock Text="Screen Attached" Foreground="#FFFFFF" FontSize="10.5" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Border x:Name="BtnRemoveAttachment" Width="16" Height="16" CornerRadius="8" Background="#3A3A3C" Cursor="Hand" MouseLeftButtonDown="BtnRemoveAttachment_MouseLeftButtonDown">
+                            <Path Data="{StaticResource IconXMark}" Fill="#E5E5EA" Width="6.5" Height="6.5" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Row 4: Bottom Floating Action Bar (Plus + Input Pill + Send) -->
+                <Grid Grid.Row="4" Margin="0,2,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Attachment / Screenshot Button (+) -->
+                    <Border x:Name="BtnAiAttach" Grid.Column="0" Width="42" Height="42" CornerRadius="21" Background="#262628" BorderBrush="#36363A" BorderThickness="1" Margin="0,0,8,0" Cursor="Hand" ToolTip="Capture &amp; Attach Active Screen" MouseLeftButtonDown="BtnAiAttach_MouseLeftButtonDown">
+                        <Path Data="M 12 5 L 12 19 M 5 12 L 19 12" Stroke="#A1A1A6" StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <!-- Input Pill with embedded Send Button -->
+                    <Border Grid.Column="1" Height="42" CornerRadius="21" Background="#1C1C1E" BorderBrush="#2C2C2E" BorderThickness="1" Padding="14,0,5,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox x:Name="TxtAiInput" Grid.Column="0" Background="Transparent" BorderThickness="0" Foreground="#FFFFFF" FontSize="12.5" VerticalContentAlignment="Center" CaretBrush="#0A84FF" KeyDown="TxtAiInput_KeyDown" TextChanged="TxtAiInput_TextChanged"/>
+                            <TextBlock x:Name="TxtAiPlaceholder" Grid.Column="0" Text="Ask anything..." Foreground="#545458" FontSize="12.5" VerticalAlignment="Center" IsHitTestVisible="False" Margin="2,0,0,0"/>
+
+                            <Border x:Name="BtnAiSend" Grid.Column="1" Width="30" Height="30" CornerRadius="15" Background="#2C2C2E" Cursor="Hand" ToolTip="Send (Enter)" MouseLeftButtonDown="BtnAiSend_MouseLeftButtonDown" VerticalAlignment="Center">
+                                <Path x:Name="IconAiSend" Data="M 12 19 L 12 5 M 6 11 L 12 5 L 18 11" Stroke="#636366" StrokeThickness="2.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="11" Height="11" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+
             <!-- 3. DYNAMICNOTCH VOLUME HUD VIEW -->
             <Grid x:Name="VolumeHudView" Margin="16,0,16,0" VerticalAlignment="Center" Visibility="Collapsed">
                 <Grid.ColumnDefinitions>

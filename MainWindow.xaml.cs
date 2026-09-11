@@ -21,6 +21,7 @@ using DynamicIsland.Dock;
 using DynamicIsland.Network;
 using DynamicIsland.AirDrop;
 using DynamicIsland.Call;
+using DynamicIsland.AI;
 
 namespace DynamicIsland
 {
@@ -71,6 +72,9 @@ namespace DynamicIsland
         private bool isClipboardHudActive = false;
         private bool isScreenMirroringHudActive = false;
         private bool isIncomingCallActive = false;
+        private bool isAiActive = false;
+        private string? _pendingScreenshotPath = null;
+        private string? _pendingScreenshotBase64 = null;
         private bool isDndOn = false;
         private bool isInitialDndLoaded = false;
         private bool isLyricsViewActive = false;
@@ -166,6 +170,7 @@ namespace DynamicIsland
         private const int VK_VOLUME_MUTE = 0xAD;
         private const int VK_MENU = 0x12; // Alt
         private const int VK_M = 0x4D; // 'M'
+        private const int VK_F9 = 0x78; // 'F9'
 
         [DllImport("user32.dll")]
         private static extern short GetKeyState(int nVirtKey);
@@ -822,6 +827,15 @@ namespace DynamicIsland
                         activeInstance.TriggerCapsLockHUD(isCapsOn);
                     });
                 }
+                // 4. Personal AI Companion Toggle Hotkey (F9)
+                else if (kbd.vkCode == VK_F9)
+                {
+                    activeInstance?.Dispatcher.InvokeAsync(() =>
+                    {
+                        activeInstance.ToggleAiView();
+                    });
+                    return (IntPtr)1; // Consume event
+                }
             }
             return CallNextHookEx(keyboardHookId, nCode, wParam, lParam);
         }
@@ -829,6 +843,19 @@ namespace DynamicIsland
         private void CheckOutsideClick(int screenX, int screenY)
         {
             if (isDraggingDockItem) return;
+            if (isAiActive)
+            {
+                try
+                {
+                    Point p = ShapeRoot.PointFromScreen(new Point(screenX, screenY));
+                    if (p.X < 0 || p.Y < 0 || p.X > ShapeRoot.ActualWidth || p.Y > ShapeRoot.ActualHeight)
+                    {
+                        CloseAiView();
+                        return;
+                    }
+                }
+                catch { }
+            }
             if (!isExpanded) return;
             if (isShelfPinned) return;
 
@@ -3937,6 +3964,7 @@ namespace DynamicIsland
             CapsLockHudView.Visibility = Visibility.Collapsed;
             IncomingCallHudView.Visibility = Visibility.Collapsed;
             UniversalExpandedContainer.Visibility = Visibility.Collapsed;
+            if (AiAssistantContainer != null) AiAssistantContainer.Visibility = Visibility.Collapsed;
         }
 
         private void HideAllExpandedTabBodies()
@@ -5367,7 +5395,7 @@ namespace DynamicIsland
 
         private void UpdateIndicatorVisuals()
         {
-            if (isVolumeHudActive || isDndHudActive || isBrightnessHudActive || isBluetoothHudActive || isAirDropHudActive || isScreenMirroringHudActive || isCapsLockHudActive || isClipboardHudActive)
+            if (isAiActive || isVolumeHudActive || isDndHudActive || isBrightnessHudActive || isBluetoothHudActive || isAirDropHudActive || isScreenMirroringHudActive || isCapsLockHudActive || isClipboardHudActive)
             {
                 return;
             }
@@ -6036,6 +6064,11 @@ namespace DynamicIsland
 
         private void ShapeRoot_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (isAiActive)
+            {
+                CloseAiView();
+                return;
+            }
             isExpanded = !isExpanded;
             if (isExpanded && currentExpandedTab == ExpandedActivityTab.Home)
             {
@@ -6080,10 +6113,217 @@ namespace DynamicIsland
             }
             else if (e.Key == Key.Escape)
             {
+                if (isAiActive)
+                {
+                    CloseAiView();
+                    e.Handled = true;
+                    return;
+                }
                 isExpanded = false;
                 if (!isVolumeHudActive && !isDndHudActive && !isBrightnessHudActive && !isBluetoothHudActive && !isAirDropHudActive) UpdateIndicatorVisuals();
             }
         }
+
+        #region AI Assistant Engine (Gemini 2.5 + SQLite Memory + Vision)
+
+        public void ToggleAiView()
+        {
+            if (isAiActive)
+            {
+                CloseAiView();
+            }
+            else
+            {
+                TriggerAiView();
+            }
+        }
+
+        public void TriggerAiView()
+        {
+            isAiActive = true;
+            isExpanded = false;
+
+            // Stop any HUD auto-hide timers if active
+            volumeAutoHideTimer.Stop();
+            brightnessAutoHideTimer.Stop();
+            dndAutoHideTimer.Stop();
+            bluetoothAutoHideTimer.Stop();
+            capsLockAutoHideTimer.Stop();
+
+            HideAllHudViews();
+            UniversalExpandedContainer.Visibility = Visibility.Collapsed;
+            StealthView.Visibility = Visibility.Collapsed;
+            AiAssistantContainer.Visibility = Visibility.Visible;
+
+            double targetW = 374;
+            double targetH = 315;
+            AnimateSize(targetW, targetH);
+
+            // Focus text input
+            Dispatcher.InvokeAsync(async () =>
+            {
+                await Task.Delay(80);
+                TxtAiInput.Focus();
+                Keyboard.Focus(TxtAiInput);
+            }, DispatcherPriority.Input);
+        }
+
+        public void CloseAiView()
+        {
+            if (!isAiActive) return;
+            isAiActive = false;
+            AiAssistantContainer.Visibility = Visibility.Collapsed;
+
+            ClearPendingAttachment();
+
+            double targetW = currentMode == ShapeDisplayMode.Notch ? notchBaseWidth : islandBaseWidth;
+            double targetH = currentMode == ShapeDisplayMode.Notch ? notchHeight : islandHeight;
+            AnimateSize(targetW, targetH);
+
+            UpdateIndicatorVisuals();
+        }
+
+        private void BtnCloseAi_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            CloseAiView();
+        }
+
+        private void BtnAiAttach_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            try
+            {
+                var (path, b64) = ScreenCaptureHelper.CaptureScreen();
+                if (!string.IsNullOrEmpty(path) && !string.IsNullOrEmpty(b64))
+                {
+                    _pendingScreenshotPath = path;
+                    _pendingScreenshotBase64 = b64;
+                    AiAttachmentChip.Visibility = Visibility.Visible;
+                    TxtAiResponse.Text = "Screenshot attached! Ask a question about your screen, or tell me to remember it.";
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AI Attachment] Error: {ex.Message}");
+            }
+        }
+
+        private void BtnRemoveAttachment_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            ClearPendingAttachment();
+        }
+
+        private void ClearPendingAttachment()
+        {
+            _pendingScreenshotPath = null;
+            _pendingScreenshotBase64 = null;
+            if (AiAttachmentChip != null) AiAttachmentChip.Visibility = Visibility.Collapsed;
+        }
+
+        private void TxtAiInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            bool hasText = !string.IsNullOrWhiteSpace(TxtAiInput.Text);
+            TxtAiPlaceholder.Visibility = hasText ? Visibility.Collapsed : Visibility.Visible;
+            BtnAiSend.Background = hasText ? new SolidColorBrush(Color.FromRgb(0x0A, 0x84, 0xFF)) : new SolidColorBrush(Color.FromRgb(0x2C, 0x2C, 0x2E));
+            IconAiSend.Stroke = hasText ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x63, 0x63, 0x66));
+        }
+
+        private void TxtAiInput_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+            {
+                e.Handled = true;
+                SendAiMessage();
+            }
+            else if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                CloseAiView();
+            }
+        }
+
+        private void BtnAiSend_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            SendAiMessage();
+        }
+
+        private async void SendAiMessage()
+        {
+            string query = TxtAiInput.Text?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(query)) return;
+
+            string? screenPath = _pendingScreenshotPath;
+            string? screenB64 = _pendingScreenshotBase64;
+
+            TxtAiInput.Text = "";
+            ClearPendingAttachment();
+
+            // Set UI to loading state
+            AiLoadingIndicator.Visibility = Visibility.Visible;
+            TxtAiResponse.Text = "";
+            CardAiMemory.Visibility = Visibility.Collapsed;
+
+            try
+            {
+                var result = await GeminiApiClient.Instance.ProcessQueryAsync(query, screenPath, screenB64);
+
+                AiLoadingIndicator.Visibility = Visibility.Collapsed;
+                TxtAiResponse.Text = string.IsNullOrWhiteSpace(result.Text) ? "Done!" : result.Text;
+
+                if (result.HasCard && result.MatchedMemory != null)
+                {
+                    var item = result.MatchedMemory;
+                    TxtCardBadge.Text = item.Category.ToUpperInvariant();
+                    TxtCardTitle.Text = item.Title;
+                    TxtCardDetail.Text = !string.IsNullOrWhiteSpace(item.Detail) ? item.Detail : item.Keywords;
+                    TxtCardTimestamp.Text = item.CreatedAt.ToString("MMM d, h:mm tt");
+                    TxtCardCategoryIcon.Text = item.DisplayCategoryIcon;
+
+                    if (!string.IsNullOrEmpty(item.ImagePath) && File.Exists(item.ImagePath))
+                    {
+                        try
+                        {
+                            var bmp = new BitmapImage();
+                            bmp.BeginInit();
+                            bmp.CacheOption = BitmapCacheOption.OnLoad;
+                            bmp.UriSource = new Uri(item.ImagePath);
+                            bmp.EndInit();
+                            bmp.Freeze();
+                            ImgCardThumbnail.Source = bmp;
+                            ImgCardThumbnail.Visibility = Visibility.Visible;
+                            TxtCardCategoryIcon.Visibility = Visibility.Collapsed;
+                        }
+                        catch
+                        {
+                            ImgCardThumbnail.Visibility = Visibility.Collapsed;
+                            TxtCardCategoryIcon.Visibility = Visibility.Visible;
+                        }
+                    }
+                    else
+                    {
+                        ImgCardThumbnail.Visibility = Visibility.Collapsed;
+                        TxtCardCategoryIcon.Visibility = Visibility.Visible;
+                    }
+
+                    CardAiMemory.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    CardAiMemory.Visibility = Visibility.Collapsed;
+                }
+            }
+            catch (Exception ex)
+            {
+                AiLoadingIndicator.Visibility = Visibility.Collapsed;
+                TxtAiResponse.Text = "Sorry, couldn't process your request right now.";
+                System.Diagnostics.Debug.WriteLine($"[AiAssistant] Error: {ex.Message}");
+            }
+        }
+
+        #endregion
 
         #endregion
     }
