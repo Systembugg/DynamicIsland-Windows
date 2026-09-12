@@ -283,6 +283,44 @@ namespace DynamicIsland.AI
             return results;
         }
 
+        public bool DeleteMemory(int id)
+        {
+            try
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+                string query = "DELETE FROM Memories WHERE Id = @id;";
+                using var cmd = new SqliteCommand(query, connection);
+                cmd.Parameters.AddWithValue("@id", id);
+                return cmd.ExecuteNonQuery() > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AiMemoryDatabase] Delete Error: {ex.Message}");
+                return false;
+            }
+        }
+
+        public bool DeleteMemoryByTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return false;
+            try
+            {
+                using var connection = new SqliteConnection(_connectionString);
+                connection.Open();
+                string query = "DELETE FROM Memories WHERE LOWER(Title) = LOWER(@title) OR LOWER(Title) LIKE @titleLike;";
+                using var cmd = new SqliteCommand(query, connection);
+                cmd.Parameters.AddWithValue("@title", title.Trim());
+                cmd.Parameters.AddWithValue("@titleLike", $"%{title.Trim()}%");
+                return cmd.ExecuteNonQuery() > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AiMemoryDatabase] DeleteByTitle Error: {ex.Message}");
+                return false;
+            }
+        }
+
         private MemoryItem ReadItem(SqliteDataReader reader)
         {
             return new MemoryItem

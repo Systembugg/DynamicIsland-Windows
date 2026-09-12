@@ -17,6 +17,13 @@ namespace DynamicIsland.AI
         public MemoryItem? MatchedMemory { get; set; }
         public bool HasCard => MatchedMemory != null;
         public bool IsError { get; set; } = false;
+        public bool MemoryDeleted { get; set; } = false;
+    }
+
+    public class ChatTurn
+    {
+        public string Role { get; set; } = "user"; // "user" or "model"
+        public string Text { get; set; } = "";
     }
 
     public class GeminiApiClient
@@ -26,12 +33,31 @@ namespace DynamicIsland.AI
 
         private readonly HttpClient _httpClient;
         private string _apiKey = "";
-        private const string Model = "gemini-2.5-flash";
+
+        // Candidate models in order of priority (all tested and verified working on your key)
+        private static readonly string[] CandidateModels = new[]
+        {
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-flash-latest"
+        };
+
+        // Multi-Turn Ongoing Conversation Memory (Maintains dialogue context like Siri / ChatGPT)
+        private readonly List<ChatTurn> _conversationHistory = new();
+        private readonly object _historyLock = new();
 
         public GeminiApiClient()
         {
             _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
             LoadApiKey();
+        }
+
+        public void ClearHistory()
+        {
+            lock (_historyLock)
+            {
+                _conversationHistory.Clear();
+            }
         }
 
         private void LoadApiKey()
@@ -68,9 +94,8 @@ namespace DynamicIsland.AI
             try
             {
                 // 1. Fetch ALL user memories so Gemini has full omniscient awareness of the user's vault
-                var allMemories = AiMemoryDatabase.Instance.GetAllMemories(35);
+                var allMemories = AiMemoryDatabase.Instance.GetAllMemories(50);
 
-                // Group by category for structured memory presentation
                 var movieItems = allMemories.Where(m => m.Category.Equals("Movie", StringComparison.OrdinalIgnoreCase) || m.Category.Equals("Film", StringComparison.OrdinalIgnoreCase)).ToList();
                 var animeItems = allMemories.Where(m => m.Category.Equals("Anime", StringComparison.OrdinalIgnoreCase) || m.Category.Equals("Manga", StringComparison.OrdinalIgnoreCase)).ToList();
                 var seriesItems = allMemories.Where(m => m.Category.Equals("Series", StringComparison.OrdinalIgnoreCase) || m.Category.Equals("Show", StringComparison.OrdinalIgnoreCase) || m.Category.Equals("TV", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -111,55 +136,64 @@ namespace DynamicIsland.AI
                 vaultSb.AppendLine($"\n[NOTES, SCREENSHOTS & GENERAL (Total: {noteItems.Count})]");
                 if (noteItems.Count > 0)
                 {
-                    foreach (var m in noteItems.Take(8)) vaultSb.AppendLine($"* [ID:{m.Id}] \"{m.Title}\" | Info: {m.Detail} (Saved: {m.CreatedAt:MMM d, yyyy})");
+                    foreach (var m in noteItems.Take(10)) vaultSb.AppendLine($"* [ID:{m.Id}] \"{m.Title}\" | Info: {m.Detail} (Saved: {m.CreatedAt:MMM d, yyyy})");
                 }
                 else vaultSb.AppendLine("(No general notes saved yet)");
 
                 string memoryContext = vaultSb.ToString();
 
-                string systemInstruction = @"You are the Personal AI Companion integrated inside Windows Dynamic Island.
-You are ultra-smart, proactive, concise, helpful, and speak naturally in English, Hindi, or Hinglish (matching the user's phrasing).
+                string systemInstruction = @"You are the ultra-smart Personal AI Companion built into the Windows Dynamic Island (like Apple Intelligence Siri + ChatGPT).
+You understand English, Hindi, and natural Hinglish fluently. You are witty, conversational, helpful, and concise.
 
-CRITICAL CONVERSATIONAL & MEMORY RULES:
-1. ACCURATE MEMORY RECALL (NEVER FORGET OR MISS ITEMS):
-- Refer to the USER'S PERSISTENT MEMORY VAULT below. It contains the complete real-time record of all items saved.
-- When the user asks what is saved, asks for their watchlist, or asks what movies/anime/items exist (e.g., 'konsi movie hai', 'bata kitne movie save kiya', 'meri watchlist', 'what movies did i save', 'aur konsi hai'):
-  ALWAYS list ALL items belonging to that category!
-  Example: 'Aapki movie watchlist me 2 movies hain: 1. Ice Cream Man (2026), 2. The End of Oak Street.'
-  NEVER miss any item or falsely claim there is only 1 item if multiple exist!
-- If the user asks about a specific item or the latest item, you can display its rich visual card by appending:
-  <MEMORY_SHOW id=""exact_id""/> at the very end of your response.
+MULTI-TURN CONVERSATION & INTELLIGENCE:
+1. ONGOING CONTEXT AWARENESS:
+- You remember the previous turns of this conversation! When the user says 'isme lead actor kaun hai', 'aur iska director?', 'aur konsi hai?', 'pehli wali hata de', 'what about that?', understand their references immediately based on previous dialogue!
 
-2. VISION & ACTIVE SCREEN INTELLIGENCE:
-- When an image/screenshot is provided or when active window context is present:
-  The user may say 'i want to watch this movie', 'add this to watchlist', 'ye movie save kar', 'what is this', etc.
-- NEVER ask 'What is the title?' if the title or content is visible on the screen or in the window title!
-- Directly extract the exact title, category (Movie, Anime, Series, Task, Note), and a concise detail from screen and context.
-- Automatically save it with <MEMORY_SAVE category=""..."" title=""..."" detail=""...""/> at the end of your response!
-- In your short friendly response, confirm that you recognized it and saved it (e.g. 'Got it! Added Inception to your Movie watchlist.').
+2. ACCURATE MEMORY VAULT RECALL:
+- Refer to the USER'S PERSISTENT MEMORY VAULT below.
+- When the user asks what is saved, asks for their watchlist, or asks what movies/shows they have:
+  ALWAYS list ALL items in that category clearly!
+  Example: 'Aapki watchlist me 2 movies hain: 1. Ice Cream Man (2026), 2. The End of Oak Street.'
+  NEVER miss items or falsely claim there is only 1 item if multiple exist.
 
-3. ACTION TAGS & CLEAN OUTPUT (ABSOLUTELY NO LEAKING PAYLOAD):
-- NEVER output raw XML or payload tags in the middle of your spoken response.
-- If saving: Append <MEMORY_SAVE category=""Movie|Anime|Series|Task|Note|Screen|General"" title=""Exact Title"" detail=""Quick synopsis or info""/> at the very end.
-- If showing a specific existing card: Append <MEMORY_SHOW id=""id""/> at the very end.
-- NEVER wrap action tags in markdown code blocks (e.g. ```xml). Just append the single tag at the end.
+3. VISION & ACTIVE WINDOW INTELLIGENCE:
+- When screen context or active window title is provided, and the user asks to save or asks what is on screen:
+  NEVER ask 'What is the title?'. Directly extract the exact title, category (Movie, Anime, Series, Task, Note), and a concise detail.
+  Confirm naturally in your response, and append the action tag.
 
-Respond in the user's language (English, Hindi, or Hinglish as prompted)." + memoryContext;
+4. AUTONOMOUS ACTIONS (MUST BE APPENDED AT THE VERY END OF YOUR RESPONSE):
+- To save an item: <ACTION:SAVE category=""Movie|Anime|Series|Task|Note|General"" title=""Exact Title"" detail=""Year, genre, or concise info""/>
+- To delete an item from watchlist: <ACTION:DELETE id=""ID"" title=""Title""/>
+- To display a rich visual card of an item: <ACTION:SHOW id=""ID""/>
+- Format rule: NEVER show raw action tags in the middle of your speech. Put them strictly at the end. NEVER use markdown code fences around them.
 
-                // 2. Build Gemini Request Payload
+Respond in natural, conversational tone matching the user's language." + memoryContext;
+
+                // 2. Build Multi-Turn Request Payload
                 var contentsNode = new JsonArray();
-                var partsNode = new JsonArray();
 
-                // Add text part
-                partsNode.Add(new JsonObject
+                lock (_historyLock)
                 {
-                    ["text"] = userPrompt
-                });
+                    // Keep up to 14 past turns for deep conversational context
+                    int skip = Math.Max(0, _conversationHistory.Count - 14);
+                    foreach (var pastTurn in _conversationHistory.Skip(skip))
+                    {
+                        var pastParts = new JsonArray { new JsonObject { ["text"] = pastTurn.Text } };
+                        contentsNode.Add(new JsonObject
+                        {
+                            ["role"] = pastTurn.Role,
+                            ["parts"] = pastParts
+                        });
+                    }
+                }
 
-                // Add image part if provided
+                // Add current turn
+                var currentParts = new JsonArray();
+                currentParts.Add(new JsonObject { ["text"] = userPrompt });
+
                 if (!string.IsNullOrEmpty(attachedBase64))
                 {
-                    partsNode.Add(new JsonObject
+                    currentParts.Add(new JsonObject
                     {
                         ["inline_data"] = new JsonObject
                         {
@@ -171,7 +205,8 @@ Respond in the user's language (English, Hindi, or Hinglish as prompted)." + mem
 
                 contentsNode.Add(new JsonObject
                 {
-                    ["parts"] = partsNode
+                    ["role"] = "user",
+                    ["parts"] = currentParts
                 });
 
                 var rootPayload = new JsonObject
@@ -187,34 +222,76 @@ Respond in the user's language (English, Hindi, or Hinglish as prompted)." + mem
                     ["generationConfig"] = new JsonObject
                     {
                         ["temperature"] = 0.7,
-                        ["maxOutputTokens"] = 512
+                        ["maxOutputTokens"] = 600
                     }
                 };
 
                 string jsonContent = rootPayload.ToJsonString();
-                var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                string url = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent?key={_apiKey}";
-                var response = await _httpClient.PostAsync(url, httpContent);
+                // 3. Multi-Model Failover Execution
+                string fullResponse = "";
+                string lastError = "";
 
-                if (!response.IsSuccessStatusCode)
+                foreach (var modelName in CandidateModels)
                 {
-                    string err = await response.Content.ReadAsStringAsync();
+                    try
+                    {
+                        var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                        string url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={_apiKey}";
+
+                        var response = await _httpClient.PostAsync(url, httpContent);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            string responseString = await response.Content.ReadAsStringAsync();
+                            var responseJson = JsonNode.Parse(responseString);
+                            fullResponse = responseJson?["candidates"]?[0]?["content"]?["parts"]?[0]?["text"]?.ToString() ?? "";
+                            if (!string.IsNullOrWhiteSpace(fullResponse))
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[Gemini] Success using model: {modelName}");
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            string err = await response.Content.ReadAsStringAsync();
+                            lastError = $"{modelName}: HTTP {response.StatusCode} - {err}";
+                            System.Diagnostics.Debug.WriteLine($"[Gemini] Failover from {modelName}: {err}");
+                        }
+                    }
+                    catch (Exception mEx)
+                    {
+                        lastError = $"{modelName}: {mEx.Message}";
+                        System.Diagnostics.Debug.WriteLine($"[Gemini] Error with {modelName}: {mEx.Message}");
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(fullResponse))
+                {
                     return new AiResponseResult
                     {
-                        Text = "Sorry, couldn't reach Gemini right now. Check your internet connection.",
+                        Text = "Sorry, couldn't get a response from Gemini right now. Please try again.",
                         IsError = true
                     };
                 }
 
-                string responseString = await response.Content.ReadAsStringAsync();
-                var responseJson = JsonNode.Parse(responseString);
-                string fullResponse = responseJson?["candidates"]?[0]?["content"]?[partsNode.Count > 0 ? "parts" : "parts"]?[0]?["text"]?.ToString() ?? "";
-
-                // Parse tags and sanitize
+                // 4. Parse Autonomous Actions and Sanitize Output
                 var result = new AiResponseResult();
-                result.Text = ExtractCleanTextAndHandleTags(fullResponse, attachedImagePath, allMemories, out var matched);
-                result.MatchedMemory = matched;
+                result.Text = ExtractCleanTextAndHandleActions(fullResponse, attachedImagePath, allMemories, out var matchedCard, out bool wasDeleted);
+                result.MatchedMemory = matchedCard;
+                result.MemoryDeleted = wasDeleted;
+
+                // 5. Save to Multi-turn Conversation History
+                lock (_historyLock)
+                {
+                    _conversationHistory.Add(new ChatTurn { Role = "user", Text = userPrompt });
+                    _conversationHistory.Add(new ChatTurn { Role = "model", Text = result.Text });
+
+                    // Prune history to 24 turns
+                    if (_conversationHistory.Count > 24)
+                    {
+                        _conversationHistory.RemoveRange(0, _conversationHistory.Count - 24);
+                    }
+                }
 
                 return result;
             }
@@ -228,22 +305,23 @@ Respond in the user's language (English, Hindi, or Hinglish as prompted)." + mem
             }
         }
 
-        private string ExtractCleanTextAndHandleTags(string rawText, string? attachedImagePath, List<MemoryItem> allMemories, out MemoryItem? cardItem)
+        private string ExtractCleanTextAndHandleActions(string rawText, string? attachedImagePath, List<MemoryItem> allMemories, out MemoryItem? cardItem, out bool memoryDeleted)
         {
             cardItem = null;
+            memoryDeleted = false;
 
-            // 1. Robust Regex extraction for <MEMORY_SAVE ...>
-            var saveMatch = Regex.Match(rawText, @"<MEMORY_SAVE\b([^>]*?)(?:/>|>.*?</MEMORY_SAVE>|>)", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            // 1. Check for SAVE action: <ACTION:SAVE ...> or <MEMORY_SAVE ...>
+            var saveMatch = Regex.Match(rawText, @"<(?:ACTION:SAVE|MEMORY_SAVE)\b([^>]*?)(?:/>|>.*?</(?:ACTION:SAVE|MEMORY_SAVE)>|>)", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             if (saveMatch.Success)
             {
                 string tagContent = saveMatch.Value;
                 string attrs = saveMatch.Groups[1].Value;
 
                 string category = ExtractRegexAttr(attrs, "category") ?? "Note";
-                string title = ExtractRegexAttr(attrs, "title") ?? "New Memory";
+                string title = ExtractRegexAttr(attrs, "title") ?? "Saved Item";
                 string detail = ExtractRegexAttr(attrs, "detail") ?? "";
 
-                if (string.IsNullOrWhiteSpace(detail) && tagContent.Contains("</MEMORY_SAVE>"))
+                if (string.IsNullOrWhiteSpace(detail) && (tagContent.Contains("</ACTION:SAVE>") || tagContent.Contains("</MEMORY_SAVE>")))
                 {
                     int bodyStart = tagContent.IndexOf('>') + 1;
                     int bodyEnd = tagContent.LastIndexOf('<');
@@ -253,15 +331,41 @@ Respond in the user's language (English, Hindi, or Hinglish as prompted)." + mem
                 cardItem = AiMemoryDatabase.Instance.SaveMemory(category, title, detail, attachedImagePath);
             }
 
-            // 2. Robust Regex extraction for <MEMORY_SHOW ...>
-            var showMatch = Regex.Match(rawText, @"<MEMORY_SHOW\b([^>]*?)(?:/>|>.*?</MEMORY_SHOW>|>)", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            // 2. Check for DELETE action: <ACTION:DELETE ...>
+            var deleteMatch = Regex.Match(rawText, @"<ACTION:DELETE\b([^>]*?)(?:/>|>.*?</ACTION:DELETE>|>)", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            if (deleteMatch.Success)
+            {
+                string attrs = deleteMatch.Groups[1].Value;
+                string idStr = ExtractRegexAttr(attrs, "id") ?? "";
+                string title = ExtractRegexAttr(attrs, "title") ?? "";
+
+                if (int.TryParse(idStr, out int delId))
+                {
+                    memoryDeleted = AiMemoryDatabase.Instance.DeleteMemory(delId);
+                }
+                else if (!string.IsNullOrWhiteSpace(title))
+                {
+                    memoryDeleted = AiMemoryDatabase.Instance.DeleteMemoryByTitle(title);
+                }
+            }
+
+            // 3. Check for SHOW action: <ACTION:SHOW ...> or <MEMORY_SHOW ...>
+            var showMatch = Regex.Match(rawText, @"<(?:ACTION:SHOW|MEMORY_SHOW)\b([^>]*?)(?:/>|>.*?</(?:ACTION:SHOW|MEMORY_SHOW)>|>)", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             if (showMatch.Success && cardItem == null)
             {
                 string attrs = showMatch.Groups[1].Value;
                 string idStr = ExtractRegexAttr(attrs, "id") ?? "";
-                if (int.TryParse(idStr, out int id))
+                if (int.TryParse(idStr, out int showId))
                 {
-                    cardItem = allMemories.FirstOrDefault(m => m.Id == id);
+                    cardItem = allMemories.FirstOrDefault(m => m.Id == showId);
+                }
+                if (cardItem == null)
+                {
+                    string title = ExtractRegexAttr(attrs, "title") ?? "";
+                    if (!string.IsNullOrWhiteSpace(title))
+                    {
+                        cardItem = allMemories.FirstOrDefault(m => m.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
+                    }
                 }
                 if (cardItem == null && allMemories.Count > 0)
                 {
@@ -269,8 +373,8 @@ Respond in the user's language (English, Hindi, or Hinglish as prompted)." + mem
                 }
             }
 
-            // 3. Fallback: If no action tag, check if raw text specifically refers to an item in memory
-            if (cardItem == null && allMemories.Count > 0)
+            // 4. Fallback: If no card yet, check if raw response specifically speaks about an item from memory
+            if (cardItem == null && allMemories.Count > 0 && !memoryDeleted)
             {
                 foreach (var m in allMemories)
                 {
@@ -283,12 +387,11 @@ Respond in the user's language (English, Hindi, or Hinglish as prompted)." + mem
                 }
             }
 
-            // 4. STRIP ALL ACTION TAGS, CODE FENCES, AND MARKUP LEAKS COMPLETELY!
+            // 5. Complete Payload & Markup Stripping (Absolute Zero Leaks!)
             string cleanText = rawText;
-            cleanText = Regex.Replace(cleanText, @"```(?:xml|json)?\s*<MEMORY_[^>]*>.*?```", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            cleanText = Regex.Replace(cleanText, @"<MEMORY_SAVE\b[^>]*?(?:/>|>.*?</MEMORY_SAVE>|>)", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            cleanText = Regex.Replace(cleanText, @"<MEMORY_SHOW\b[^>]*?(?:/>|>.*?</MEMORY_SHOW>|>)", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            cleanText = Regex.Replace(cleanText, @"</?MEMORY_[^>]*>", "", RegexOptions.IgnoreCase); // Any stray tags
+            cleanText = Regex.Replace(cleanText, @"```(?:xml|json)?\s*<(?:ACTION|MEMORY)[^>]*>.*?```", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            cleanText = Regex.Replace(cleanText, @"<(?:ACTION:[A-Z]+|MEMORY_[A-Z]+)\b[^>]*?(?:/>|>.*?</(?:ACTION:[A-Z]+|MEMORY_[A-Z]+)>|>)", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            cleanText = Regex.Replace(cleanText, @"</?(?:ACTION:[A-Z]+|MEMORY_[A-Z]+)[^>]*>", "", RegexOptions.IgnoreCase);
             cleanText = cleanText.Trim();
 
             return cleanText;

@@ -6205,11 +6205,11 @@ namespace DynamicIsland
             AiAttachmentChip.Visibility = Visibility.Collapsed;
 
             AiAssistantContainer.Margin = currentMode == ShapeDisplayMode.Notch 
-                ? new Thickness(18, 14, 18, 10) 
-                : new Thickness(18, 11, 18, 11);
+                ? new Thickness(16, 12, 16, 10) 
+                : new Thickness(16, 9, 16, 9);
 
-            // Sleek, spacious floating input pill (420px width gives 15.8px clearance on curves so + and send are never cut off)
-            double targetW = 420;
+            // Sleek, spacious unified Apple floating pill (440px width gives 16px clearance so curves never cut content)
+            double targetW = 440;
             double targetH = currentMode == ShapeDisplayMode.Notch ? 64 : 58;
             AnimateSize(targetW, targetH);
 
@@ -6233,7 +6233,7 @@ namespace DynamicIsland
             CardAiMemory.Visibility = Visibility.Collapsed;
             AiLoadingIndicator.Visibility = Visibility.Collapsed;
             TxtAiInput.Text = "";
-            AiAssistantContainer.Margin = new Thickness(18, 10, 18, 10);
+            AiAssistantContainer.Margin = new Thickness(16, 9, 16, 9);
 
             ClearPendingAttachment();
 
@@ -6260,7 +6260,7 @@ namespace DynamicIsland
 
                     // Smoothly expand slightly for attachment chip
                     double targetH = currentMode == ShapeDisplayMode.Notch ? 96 : 88;
-                    AnimateSize(420, targetH);
+                    AnimateSize(440, targetH);
                 }
             }
             catch (Exception ex)
@@ -6277,7 +6277,7 @@ namespace DynamicIsland
             if (AiResponseContainer.Visibility != Visibility.Visible && CardAiMemory.Visibility != Visibility.Visible)
             {
                 double targetH = currentMode == ShapeDisplayMode.Notch ? 64 : 58;
-                AnimateSize(420, targetH);
+                AnimateSize(440, targetH);
             }
         }
 
@@ -6338,45 +6338,24 @@ namespace DynamicIsland
 
             // Adapt height for thinking state
             double thinkingH = currentMode == ShapeDisplayMode.Notch ? 96 : 88;
-            AnimateSize(420, thinkingH);
+            AnimateSize(440, thinkingH);
 
-            // AUTO-VISION & ACTIVE SCREEN INTELLIGENCE:
-            // If user did not manually attach a screenshot, auto-capture if query is contextual
+            // TRUE AMBIENT INTELLIGENCE:
+            // If user did not manually attach a screenshot, auto-capture active desktop so Gemini can literally SEE what the user is looking at
             if (string.IsNullOrEmpty(screenPath))
             {
-                bool isContextual = query.Contains("this", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("it", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("ye", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("screen", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("watch", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("movie", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("anime", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("show", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("series", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("video", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("trailer", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("dekh", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("bata", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("save", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("remember", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("add", StringComparison.OrdinalIgnoreCase) ||
-                                    query.Contains("what", StringComparison.OrdinalIgnoreCase);
-
-                if (isContextual)
+                try
                 {
-                    try
+                    var (capPath, capB64) = ScreenCaptureHelper.CaptureScreen();
+                    if (!string.IsNullOrEmpty(capPath) && !string.IsNullOrEmpty(capB64))
                     {
-                        var (capPath, capB64) = ScreenCaptureHelper.CaptureScreen();
-                        if (!string.IsNullOrEmpty(capPath) && !string.IsNullOrEmpty(capB64))
-                        {
-                            screenPath = capPath;
-                            screenB64 = capB64;
-                        }
+                        screenPath = capPath;
+                        screenB64 = capB64;
                     }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AutoScreenCapture] {ex.Message}");
-                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AutoScreenCapture] {ex.Message}");
                 }
             }
 
@@ -6384,7 +6363,7 @@ namespace DynamicIsland
             string enrichedQuery = query;
             if (!string.IsNullOrWhiteSpace(_lastActiveWindowTitle))
             {
-                enrichedQuery += $"\n[Active Window/Browser Context: {_lastActiveWindowTitle}]";
+                enrichedQuery += $"\n[Current Active Window / App: {_lastActiveWindowTitle}]";
             }
 
             try
@@ -6441,23 +6420,29 @@ namespace DynamicIsland
 
                 // Dynamic Measurement: Measure exact layout height needed by AiAssistantContainer
                 AiAssistantContainer.UpdateLayout();
-                AiAssistantContainer.Measure(new Size(384, double.PositiveInfinity));
+                AiAssistantContainer.Measure(new Size(408, double.PositiveInfinity));
                 double desiredH = AiAssistantContainer.DesiredSize.Height;
-                double extraPadding = currentMode == ShapeDisplayMode.Notch ? 22 : 16;
-                double targetH = Math.Clamp(desiredH + extraPadding, currentMode == ShapeDisplayMode.Notch ? 64 : 58, 420);
-                AnimateSize(420, targetH);
 
-                // Start auto-hide timer after Gemini finishes speaking (e.g. 25s)
+                // Spacious minimum heights so text is never cramped against the top or bottom
+                double minH = result.HasCard 
+                    ? (currentMode == ShapeDisplayMode.Notch ? 230 : 215)
+                    : (currentMode == ShapeDisplayMode.Notch ? 135 : 125);
+
+                double extraPadding = currentMode == ShapeDisplayMode.Notch ? 24 : 18;
+                double targetH = Math.Clamp(desiredH + extraPadding, minH, 440);
+                AnimateSize(440, targetH);
+
+                // Start auto-hide timer after Gemini finishes speaking (e.g. 30s)
                 aiAutoHideTimer.Start();
             }
             catch (Exception ex)
             {
                 AiLoadingIndicator.Visibility = Visibility.Collapsed;
-                TxtAiResponse.Text = "Sorry, couldn't process your request right now.";
+                TxtAiResponse.Text = "Sorry, couldn't process your request right now. Please try again.";
                 AiResponseContainer.Visibility = Visibility.Visible;
                 CardAiMemory.Visibility = Visibility.Collapsed;
-                double targetH = currentMode == ShapeDisplayMode.Notch ? 104 : 96;
-                AnimateSize(420, targetH);
+                double targetH = currentMode == ShapeDisplayMode.Notch ? 130 : 120;
+                AnimateSize(440, targetH);
                 System.Diagnostics.Debug.WriteLine($"[AiAssistant] Error: {ex.Message}");
             }
         }
