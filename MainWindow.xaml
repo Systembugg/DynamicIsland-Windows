@@ -93,11 +93,63 @@
         <!-- Apple Search Icon -->
         <Geometry x:Key="IconSearch">M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z</Geometry>
         
-        <!-- Official Apple Call SVG Geometries (User Provided SVGs) -->
         <Geometry x:Key="IconCallAccept">M 5.8 15.4 C 2.5 12.1 0 8.1 0 4.8 C 0 3.3 0.5 2.0 1.6 0.9 C 2.3 0.3 3.0 0 3.8 0 C 4.4 0 5.0 0.2 5.4 0.8 L 7.8 4.2 C 8.2 4.8 8.4 5.2 8.4 5.6 C 8.4 6.2 8.1 6.6 7.6 7.1 L 6.8 8.0 C 6.7 8.1 6.6 8.2 6.6 8.4 C 6.6 8.5 6.7 8.7 6.7 8.8 C 7.1 9.5 8.1 10.8 9.3 11.9 C 10.4 13.0 11.6 14.0 12.3 14.4 C 12.4 14.5 12.6 14.6 12.8 14.6 C 12.9 14.6 13.1 14.5 13.2 14.4 L 14.0 13.6 C 14.5 13.1 15.0 12.8 15.5 12.8 C 15.9 12.8 16.4 13.0 16.9 13.3 L 20.4 15.8 C 21.0 16.2 21.2 16.8 21.2 17.3 C 21.2 18.1 20.8 18.9 20.2 19.6 C 19.2 20.7 17.9 21.2 16.4 21.2 C 13.1 21.2 9.1 18.7 5.8 15.4 Z</Geometry>
         <Geometry x:Key="IconCallDecline">M 13.5 0 C 18.5 0 23.0 1.0 25.4 3.4 C 26.4 4.4 27.0 5.7 27.0 7.2 C 26.9 8.2 26.6 9.0 26.1 9.5 C 25.6 9.9 25.1 10.2 24.4 10.1 L 20.2 9.4 C 19.6 9.3 19.1 9.1 18.8 8.8 C 18.5 8.4 18.3 7.8 18.3 7.1 L 18.3 6.0 C 18.3 5.8 18.2 5.6 18.1 5.5 C 18.0 5.4 17.8 5.3 17.7 5.3 C 16.9 5.1 15.4 4.9 13.5 4.9 C 11.6 4.9 10.0 5.1 9.2 5.3 C 9.1 5.3 8.9 5.4 8.8 5.5 C 8.7 5.6 8.6 5.8 8.6 6.0 V 7.1 C 8.6 7.8 8.5 8.4 8.1 8.8 C 7.8 9.1 7.4 9.3 6.7 9.4 L 2.5 10.1 C 1.9 10.2 1.3 10.0 0.9 9.5 C 0.4 9.0 0.1 8.2 0.0 7.2 C 0.0 5.7 0.5 4.4 1.6 3.4 C 3.9 1.0 8.5 0 13.5 0 Z</Geometry>
         <Geometry x:Key="IconCallPhoneGreen">M 4.6 12.2 C 2.0 9.5 0 6.4 0 3.8 C 0 2.6 0.4 1.6 1.3 0.8 C 1.8 0.3 2.4 0 3.0 0 C 3.5 0 4.0 0.2 4.3 0.7 L 6.2 3.3 C 6.5 3.8 6.7 4.1 6.7 4.5 C 6.7 4.9 6.5 5.3 6.0 5.7 L 5.4 6.3 C 5.3 6.4 5.3 6.5 5.3 6.7 C 5.3 6.8 5.3 6.9 5.4 7.0 C 5.7 7.6 6.5 8.5 7.4 9.4 C 8.3 10.3 9.2 11.1 9.8 11.4 C 9.9 11.5 10.0 11.5 10.1 11.5 C 10.3 11.5 10.4 11.5 10.5 11.4 L 11.1 10.8 C 11.5 10.4 11.9 10.1 12.3 10.1 C 12.7 10.1 13.0 10.3 13.4 10.6 L 16.2 12.5 C 16.6 12.8 16.8 13.3 16.8 13.8 C 16.8 14.4 16.5 15.0 16.0 15.5 C 15.2 16.4 14.2 16.8 13.0 16.8 C 10.4 16.8 7.3 14.8 4.6 12.2 Z</Geometry>
         <Geometry x:Key="IconCallVideoGreen">M 3.1 14.6 C 1.1 14.6 0 13.6 0 11.7 V 3.0 C 0 1.1 1.2 0 3.1 0 H 12.3 C 14.2 0 15.3 1.1 15.3 3.0 V 11.6 C 15.3 13.5 14.2 14.6 12.2 14.6 H 3.1 Z M 16.6 10.3 V 4.4 L 19.5 1.9 C 19.9 1.6 20.3 1.4 20.7 1.4 C 21.5 1.4 22.0 1.9 22.0 2.7 V 12.0 C 22.0 12.8 21.5 13.3 20.7 13.3 C 20.3 13.3 19.9 13.1 19.5 12.8 L 16.6 10.3 Z</Geometry>
+
+        <!-- Apple iOS/macOS Minimalist 4px Translucent ScrollBar & ScrollViewer Style -->
+        <Style x:Key="AppleScrollBarThumb" TargetType="{x:Type Thumb}">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Thumb}">
+                        <Border CornerRadius="2" Background="#55FFFFFF" Margin="1,0,1,0"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AppleSleekScrollBar" TargetType="{x:Type ScrollBar}">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Width" Value="4"/>
+            <Setter Property="MinWidth" Value="4"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource AppleScrollBarThumb}"/>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AppleSleekScrollViewer" TargetType="{x:Type ScrollViewer}">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                        <Grid>
+                            <ScrollContentPresenter CanContentScroll="{TemplateBinding CanContentScroll}"/>
+                            <ScrollBar x:Name="PART_VerticalScrollBar"
+                                       Style="{StaticResource AppleSleekScrollBar}"
+                                       HorizontalAlignment="Right"
+                                       Value="{TemplateBinding VerticalOffset}"
+                                       Maximum="{TemplateBinding ScrollableHeight}"
+                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     
     <Grid HorizontalAlignment="Center" VerticalAlignment="Top">
@@ -1079,7 +1131,7 @@
             </Grid>
 
             <!-- 2.5 AI ASSISTANT EXPANDED VIEW (Adaptive Dynamic Island AI) -->
-            <Grid x:Name="AiAssistantContainer" Margin="16,10,16,10" VerticalAlignment="Top" Visibility="Collapsed">
+            <Grid x:Name="AiAssistantContainer" Margin="12,8,12,8" VerticalAlignment="Top" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -1088,8 +1140,8 @@
                 </Grid.RowDefinitions>
 
                 <!-- Row 0: Conversational Response Speech Bubble (Spacious & Never clipped) -->
-                <Grid x:Name="AiResponseContainer" Grid.Row="0" Margin="4,6,4,12" Visibility="Collapsed">
-                    <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <Grid x:Name="AiResponseContainer" Grid.Row="0" Margin="4,4,4,10" Visibility="Collapsed">
+                    <ScrollViewer Style="{StaticResource AppleSleekScrollViewer}" MaxHeight="200" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
                         <TextBlock x:Name="TxtAiResponse"
                                    Foreground="#F5F5F7" FontSize="13" FontWeight="Normal" LineHeight="19"
                                    TextWrapping="Wrap"/>
@@ -1097,7 +1149,7 @@
                 </Grid>
 
                 <!-- Row 1: Dynamic Memory / Watchlist Card (Shown only when card is present) -->
-                <Border x:Name="CardAiMemory" Grid.Row="1" MinHeight="82" Height="Auto" CornerRadius="18" Background="#242426" BorderBrush="#33FFFFFF" BorderThickness="0.8" Padding="12,10" Margin="0,0,0,12" Visibility="Collapsed">
+                <Border x:Name="CardAiMemory" Grid.Row="1" MinHeight="82" Height="Auto" CornerRadius="18" Background="#242426" BorderBrush="#33FFFFFF" BorderThickness="0.8" Padding="12,10" Margin="0,0,0,10" Visibility="Collapsed">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="46"/>
@@ -1152,8 +1204,8 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Row 3: Bottom Floating Action Bar (Unified Apple Pill) -->
-                <Border Grid.Row="3" Height="40" CornerRadius="20" Background="#1C1C1E" BorderBrush="#2C2C2E" BorderThickness="1" Padding="4,0,4,0">
+                <!-- Row 3: Bottom Floating Action Bar (Sleek Apple Pill, 14px internal margin from sides = 26px total clearance) -->
+                <Border Grid.Row="3" Height="38" CornerRadius="19" Background="#1C1C1E" BorderBrush="#2C2C2E" BorderThickness="1" Padding="4,0,4,0" Margin="14,0,14,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -1162,7 +1214,7 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- Attachment / Screenshot Button (+) -->
-                        <Border x:Name="BtnAiAttach" Grid.Column="0" Width="32" Height="32" CornerRadius="16" Background="Transparent" Cursor="Hand" ToolTip="Capture &amp; Attach Screen" MouseLeftButtonDown="BtnAiAttach_MouseLeftButtonDown" VerticalAlignment="Center" Margin="2,0,2,0">
+                        <Border x:Name="BtnAiAttach" Grid.Column="0" Width="30" Height="30" CornerRadius="15" Background="Transparent" Cursor="Hand" ToolTip="Capture &amp; Attach Screen" MouseLeftButtonDown="BtnAiAttach_MouseLeftButtonDown" VerticalAlignment="Center" Margin="2,0,2,0">
                             <Path Data="M 12 5 L 12 19 M 5 12 L 19 12" Stroke="#8E8E93" StrokeThickness="2.0" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="13" Height="13" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
 

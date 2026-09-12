@@ -6205,12 +6205,12 @@ namespace DynamicIsland
             AiAttachmentChip.Visibility = Visibility.Collapsed;
 
             AiAssistantContainer.Margin = currentMode == ShapeDisplayMode.Notch 
-                ? new Thickness(16, 12, 16, 10) 
-                : new Thickness(16, 9, 16, 9);
+                ? new Thickness(12, 11, 12, 11) 
+                : new Thickness(12, 8, 12, 8);
 
-            // Sleek, spacious unified Apple floating pill (440px width gives 16px clearance so curves never cut content)
+            // Sleek, spacious unified Apple floating pill (440px width with 26px total clearance on curves)
             double targetW = 440;
-            double targetH = currentMode == ShapeDisplayMode.Notch ? 64 : 58;
+            double targetH = currentMode == ShapeDisplayMode.Notch ? 60 : 54;
             AnimateSize(targetW, targetH);
 
             // Focus text input
@@ -6233,7 +6233,7 @@ namespace DynamicIsland
             CardAiMemory.Visibility = Visibility.Collapsed;
             AiLoadingIndicator.Visibility = Visibility.Collapsed;
             TxtAiInput.Text = "";
-            AiAssistantContainer.Margin = new Thickness(16, 9, 16, 9);
+            AiAssistantContainer.Margin = new Thickness(12, 8, 12, 8);
 
             ClearPendingAttachment();
 
@@ -6259,7 +6259,7 @@ namespace DynamicIsland
                     AiAttachmentChip.Visibility = Visibility.Visible;
 
                     // Smoothly expand slightly for attachment chip
-                    double targetH = currentMode == ShapeDisplayMode.Notch ? 96 : 88;
+                    double targetH = currentMode == ShapeDisplayMode.Notch ? 90 : 82;
                     AnimateSize(440, targetH);
                 }
             }
@@ -6276,7 +6276,7 @@ namespace DynamicIsland
             // Adapt back down
             if (AiResponseContainer.Visibility != Visibility.Visible && CardAiMemory.Visibility != Visibility.Visible)
             {
-                double targetH = currentMode == ShapeDisplayMode.Notch ? 64 : 58;
+                double targetH = currentMode == ShapeDisplayMode.Notch ? 60 : 54;
                 AnimateSize(440, targetH);
             }
         }
@@ -6333,11 +6333,11 @@ namespace DynamicIsland
             // Set UI to loading / thinking state
             AiLoadingIndicator.Visibility = Visibility.Visible;
             AiResponseContainer.Visibility = Visibility.Collapsed;
-            TxtAiResponse.Text = "";
+            TxtAiResponse.Inlines.Clear();
             CardAiMemory.Visibility = Visibility.Collapsed;
 
             // Adapt height for thinking state
-            double thinkingH = currentMode == ShapeDisplayMode.Notch ? 96 : 88;
+            double thinkingH = currentMode == ShapeDisplayMode.Notch ? 90 : 82;
             AnimateSize(440, thinkingH);
 
             // TRUE AMBIENT INTELLIGENCE:
@@ -6407,20 +6407,22 @@ namespace DynamicIsland
                         TxtCardCategoryIcon.Visibility = Visibility.Visible;
                     }
 
-                    TxtAiResponse.Text = string.IsNullOrWhiteSpace(result.Text) ? "Saved to your memory." : result.Text;
+                    string respText = string.IsNullOrWhiteSpace(result.Text) ? "Saved to your memory." : result.Text;
+                    MarkdownHelper.RenderMarkdown(TxtAiResponse, respText);
                     AiResponseContainer.Visibility = Visibility.Visible;
                     CardAiMemory.Visibility = Visibility.Visible;
                 }
                 else
                 {
                     CardAiMemory.Visibility = Visibility.Collapsed;
-                    TxtAiResponse.Text = string.IsNullOrWhiteSpace(result.Text) ? "Done!" : result.Text;
+                    string respText = string.IsNullOrWhiteSpace(result.Text) ? "Done!" : result.Text;
+                    MarkdownHelper.RenderMarkdown(TxtAiResponse, respText);
                     AiResponseContainer.Visibility = Visibility.Visible;
                 }
 
                 // Dynamic Measurement: Measure exact layout height needed by AiAssistantContainer
                 AiAssistantContainer.UpdateLayout();
-                AiAssistantContainer.Measure(new Size(408, double.PositiveInfinity));
+                AiAssistantContainer.Measure(new Size(416, double.PositiveInfinity));
                 double desiredH = AiAssistantContainer.DesiredSize.Height;
 
                 // Spacious minimum heights so text is never cramped against the top or bottom
@@ -6428,7 +6430,7 @@ namespace DynamicIsland
                     ? (currentMode == ShapeDisplayMode.Notch ? 230 : 215)
                     : (currentMode == ShapeDisplayMode.Notch ? 135 : 125);
 
-                double extraPadding = currentMode == ShapeDisplayMode.Notch ? 24 : 18;
+                double extraPadding = currentMode == ShapeDisplayMode.Notch ? 22 : 16;
                 double targetH = Math.Clamp(desiredH + extraPadding, minH, 440);
                 AnimateSize(440, targetH);
 
@@ -6438,10 +6440,10 @@ namespace DynamicIsland
             catch (Exception ex)
             {
                 AiLoadingIndicator.Visibility = Visibility.Collapsed;
-                TxtAiResponse.Text = "Sorry, couldn't process your request right now. Please try again.";
+                MarkdownHelper.RenderMarkdown(TxtAiResponse, "Sorry, couldn't process your request right now. Please try again.");
                 AiResponseContainer.Visibility = Visibility.Visible;
                 CardAiMemory.Visibility = Visibility.Collapsed;
-                double targetH = currentMode == ShapeDisplayMode.Notch ? 130 : 120;
+                double targetH = currentMode == ShapeDisplayMode.Notch ? 120 : 110;
                 AnimateSize(440, targetH);
                 System.Diagnostics.Debug.WriteLine($"[AiAssistant] Error: {ex.Message}");
             }
