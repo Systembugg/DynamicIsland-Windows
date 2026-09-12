@@ -34,12 +34,15 @@ namespace DynamicIsland.AI
         private readonly HttpClient _httpClient;
         private string _apiKey = "";
 
-        // Candidate models in order of priority (all tested and verified working on your key)
+        // Candidate models in order of priority:
+        // "gemini-flash-latest" has standard 1500 RPD free tier quota.
+        // gemini-3.6-flash, 3.5-flash and lite serve as resilient fallbacks.
         private static readonly string[] CandidateModels = new[]
         {
+            "gemini-flash-latest",
             "gemini-3.6-flash",
             "gemini-3.5-flash",
-            "gemini-flash-latest"
+            "gemini-flash-lite-latest"
         };
 
         // Multi-Turn Ongoing Conversation Memory (Maintains dialogue context like Siri / ChatGPT)
